@@ -45,6 +45,11 @@ public enum FeatureFlags {
         return dict
     }
 
+    /// Whether a boolean feature flag is enabled (its file exists).
+    public static func isEnabled(_ name: String) -> Bool {
+        FileManager.default.fileExists(atPath: "\(directory)/\(name)")
+    }
+
     /// Ensure the features directory exists with owner-only permissions.
     public static func ensureDirectory() {
         try? FileManager.default.createDirectory(

@@ -38,6 +38,13 @@ class FloatingWindowManager: ObservableObject {
         }
     }
 
+    @Published var yoloModeEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(yoloModeEnabled, forKey: "NaviExp.YoloMode")
+            FeatureFlags.set("yolo-mode", enabled: yoloModeEnabled)
+        }
+    }
+
     @Published var showFolderEnabled: Bool {
         didSet { UserDefaults.standard.set(showFolderEnabled, forKey: "NaviExp.ShowFolder") }
     }
@@ -81,6 +88,7 @@ class FloatingWindowManager: ObservableObject {
         FeatureFlags.set("menu-bar", enabled: menuBarEnabled)
         FeatureFlags.set("session-names", enabled: sessionNamesEnabled)
         FeatureFlags.set("permission-details", enabled: permissionDetailsEnabled)
+        FeatureFlags.set("yolo-mode", enabled: yoloModeEnabled)
         // Core features — always enabled. Flag files written so hooks that
         // still gate on `/tmp/navi/features/<name>` continue to work.
         FeatureFlags.set("terminal-focus", enabled: true)
@@ -128,6 +136,14 @@ class FloatingWindowManager: ObservableObject {
             permissionDetailsEnabled = true
         } else {
             permissionDetailsEnabled = UserDefaults.standard.bool(forKey: "NaviExp.PermissionDetails")
+        }
+        // Yolo mode — default OFF (opt-in). Auto-approves every permission
+        // request, so it must never be silently on.
+        if UserDefaults.standard.object(forKey: "NaviExp.YoloMode") == nil {
+            UserDefaults.standard.set(false, forKey: "NaviExp.YoloMode")
+            yoloModeEnabled = false
+        } else {
+            yoloModeEnabled = UserDefaults.standard.bool(forKey: "NaviExp.YoloMode")
         }
         // Session row enrichment toggles — all default OFF (opt-in).
         // Use the nil-check pattern (per Navi CLAUDE.md) so the default is

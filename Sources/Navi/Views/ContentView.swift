@@ -309,6 +309,9 @@ struct ContentView: View {
             experimentalRow("Permission details", subtitle: "Show a \"Show details\" button on each permission request that opens a popover with the full tool input.",
                 isOn: Binding(get: { floatingManager.permissionDetailsEnabled }, set: { floatingManager.permissionDetailsEnabled = $0 }))
 
+            experimentalRow("Yolo mode", subtitle: "⚠️ Automatically approve every permission request the moment it arrives, without asking. This approves ALL actions, including destructive ones. Use with caution.",
+                isOn: Binding(get: { floatingManager.yoloModeEnabled }, set: { floatingManager.yoloModeEnabled = $0 }))
+
             Text("Session details")
                 .font(.caption)
                 .foregroundColor(.secondary)

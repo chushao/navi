@@ -165,6 +165,12 @@ public class EventMonitor: ObservableObject {
                 // Keep only the latest event per session (preserve pending permissions)
                 self.events.removeAll { $0.sessionID == event.sessionID && !$0.isPending }
                 self.events.insert(event, at: 0)
+                // Yolo mode: auto-approve every permission request the instant it
+                // arrives, as if the user clicked Approve. Routed through the same
+                // responses channel the hook polls, so the card shows "Approved".
+                if event.type == "permission", FeatureFlags.isEnabled("yolo-mode") {
+                    self.respond(to: event.id, with: "approve")
+                }
             }
             newEventTypes.insert(event.type)
             try? fm.removeItem(atPath: path)

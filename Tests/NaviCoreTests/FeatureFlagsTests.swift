@@ -103,6 +103,16 @@ struct FeatureFlagsTests {
         #expect(!FileManager.default.fileExists(atPath: path(for: name)))
     }
 
+    @Test func isEnabledReflectsFlagFile() {
+        let name = uniqueName()
+        defer { try? FileManager.default.removeItem(atPath: path(for: name)) }
+        #expect(!FeatureFlags.isEnabled(name))
+        FeatureFlags.set(name, enabled: true)
+        #expect(FeatureFlags.isEnabled(name))
+        FeatureFlags.set(name, enabled: false)
+        #expect(!FeatureFlags.isEnabled(name))
+    }
+
     @Test func readConfigReturnsNilWhenAbsent() {
         let name = uniqueName()
         #expect(FeatureFlags.readConfig(name) == nil)
