@@ -24,7 +24,9 @@ REPO_SLUG="${REPO_SLUG%/}"
 if [ -n "${NAVI_BUILD_FROM_SOURCE:-}" ]; then
     TMP="$(mktemp -d)"
     trap 'rm -rf "$TMP"' EXIT
-    bash "$DIR/scripts/build-from-source.sh" "$TMP" >&2
+    # Keep the Mach-O LC_UUID so dyld on macOS 26+ will load the app. CI strips
+    # it (-no_uuid) for reproducibility; local builds don't need that.
+    NAVI_LOCAL_BUILD=1 bash "$DIR/scripts/build-from-source.sh" "$TMP" >&2
     rm -rf "$APP_BUNDLE"
     mv "$TMP/Navi.app" "$APP_BUNDLE"
     echo "$TARGET_VERSION" > "$BUILT_VERSION_FILE"

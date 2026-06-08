@@ -49,10 +49,21 @@ echo "=======================" >&2
 
 # -Xlinker -no_uuid: zero out Mach-O LC_UUID so two builds of identical
 # inputs produce identical binaries (ld64 otherwise injects a random UUID).
-( cd "$DIR" && xcrun -sdk macosx swift build -c release \
-    -Xlinker -no_uuid \
-    --product Navi \
-    --build-path "$OUT/.build" )
+# This is required for the CI reproducibility gate, but it removes the LC_UUID
+# load command entirely, and dyld on macOS 26+ refuses to load a binary that
+# has none ("missing LC_UUID load command"). Local contributor builds set
+# NAVI_LOCAL_BUILD=1 (via build.sh's NAVI_BUILD_FROM_SOURCE path) to keep the
+# UUID so the app actually launches; CI leaves it unset for reproducibility.
+if [ -n "${NAVI_LOCAL_BUILD:-}" ]; then
+    ( cd "$DIR" && xcrun -sdk macosx swift build -c release \
+        --product Navi \
+        --build-path "$OUT/.build" )
+else
+    ( cd "$DIR" && xcrun -sdk macosx swift build -c release \
+        -Xlinker -no_uuid \
+        --product Navi \
+        --build-path "$OUT/.build" )
+fi
 
 cp "$DIR/Info.plist" "$APP/Contents/Info.plist"
 cp "$OUT/.build/release/Navi" "$APP/Contents/MacOS/Navi"
