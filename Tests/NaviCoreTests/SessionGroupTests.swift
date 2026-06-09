@@ -154,13 +154,25 @@ struct SessionGroupTests {
         #expect(SessionGroup(id: "sid", info: info, events: []).status == .working)
     }
 
-    @Test func canonicalWaitingIsDeferredToHookPath() {
-        // "waiting" is intentionally not reconciled here (remote-approval
-        // handling lands with the tmux work) — the hook view stands.
+    @Test func canonicalWaitingNewerThanHookSurfacesNeedsAttention() {
+        // Claude writes "waiting" to the canonical file when blocked on a prompt
+        // (e.g. a permission or input request). When that's newer than the last
+        // hook event, Navi must flag it as needsAttention even though no live
+        // pending permission event exists — this is the missed/timed-out hook case.
         let hookAt = Date()
         let info = makeInfo(
             pid: getpid(), lastEventType: "working", lastActivity: hookAt,
             claudeStatus: "waiting", statusUpdatedAt: hookAt.addingTimeInterval(5))
+        #expect(SessionGroup(id: "sid", info: info, events: []).status == .needsAttention)
+    }
+
+    @Test func freshHookWinsOverOlderCanonicalWaiting() {
+        // A just-fired working hook (newer than the canonical "waiting" write)
+        // still keeps Navi instant — recency guard applies to waiting too.
+        let canonicalAt = Date()
+        let info = makeInfo(
+            pid: getpid(), lastEventType: "working", lastActivity: canonicalAt.addingTimeInterval(5),
+            claudeStatus: "waiting", statusUpdatedAt: canonicalAt)
         #expect(SessionGroup(id: "sid", info: info, events: []).status == .working)
     }
 

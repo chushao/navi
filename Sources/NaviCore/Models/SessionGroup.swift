@@ -22,15 +22,22 @@ public struct SessionGroup: Identifiable {
         let hookWorking = info.lastEventType == "working"
 
         // Canonical backstop: ~/.claude/sessions/<pid>.json carries the real
-        // busy/idle status Claude maintains regardless of hooks. Trust whichever
-        // signal is newer — a just-fired hook keeps Navi instant, while a newer
-        // canonical status self-heals a stuck state from a missed Stop or
-        // UserPromptSubmit. ("waiting" is intentionally left to the hook path
-        // here; remote-approval handling for it lands with the tmux work.)
+        // busy/idle/waiting status Claude maintains regardless of hooks. Trust
+        // whichever signal is newer — a just-fired hook keeps Navi instant, while
+        // a newer canonical status self-heals a stuck state from a missed Stop,
+        // UserPromptSubmit, or PermissionRequest hook. "waiting" means Claude is
+        // blocked on a prompt (permission or input), so it surfaces as
+        // needsAttention even when no live pending permission event exists — this
+        // is what keeps Navi flagging input requests when the hook is missed or
+        // its 120s poll has already timed out.
         if let canonicalAt = info.statusUpdatedAt,
-           info.claudeStatus == "busy" || info.claudeStatus == "idle",
+           info.claudeStatus == "busy" || info.claudeStatus == "idle" || info.claudeStatus == "waiting",
            canonicalAt > info.lastActivity {
-            return info.claudeStatus == "busy" ? .working : .waitingForInput
+            switch info.claudeStatus {
+            case "busy": return .working
+            case "waiting": return .needsAttention
+            default: return .waitingForInput
+            }
         }
 
         return hookWorking ? .working : .waitingForInput
