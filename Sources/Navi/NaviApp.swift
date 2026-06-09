@@ -29,7 +29,7 @@ struct NaviApp: App {
     }
 
     var body: some Scene {
-        Window("Navi", id: "monitor") {
+        Window("AngryNavi", id: "monitor") {
             ContentView(monitor: monitor, floatingManager: floatingManager, enrichmentService: enrichmentService, isFloatingWindow: true)
                 .onAppear {
                     monitor.attach(enrichmentService: enrichmentService)

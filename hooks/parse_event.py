@@ -11,7 +11,7 @@ import time
 import os
 
 EVENTS_DIR = os.environ["EVENTS_DIR"]
-FEATURES_DIR = "/tmp/navi/features"
+FEATURES_DIR = "/tmp/angrynavi/features"
 
 
 def feature_enabled(name):
@@ -123,7 +123,7 @@ if event_name == "PermissionRequest" and not tool_use_id:
     if feature_enabled("auto-dismiss"):
         if "/" not in session_id and ".." not in session_id:
             try:
-                with open("/tmp/navi/pretooluse/" + session_id + ".latest") as f:
+                with open("/tmp/angrynavi/pretooluse/" + session_id + ".latest") as f:
                     tool_use_id = f.read().strip()
             except (FileNotFoundError, OSError):
                 pass
@@ -146,7 +146,7 @@ pid = int(ppid) if ppid and ppid.isdigit() else 0
 hook_timeout = int(os.environ.get("NAVI_HOOK_TIMEOUT", "120"))
 timestamp = time.time()
 # Nonce is 128 bits of entropy so a local attacker can't pre-write an
-# approve decision to /tmp/navi/responses/<event_id>. Keep the timestamp
+# approve decision to /tmp/angrynavi/responses/<event_id>. Keep the timestamp
 # prefix for sortability in directory listings and debug output.
 event_id = "{}-{}".format(int(timestamp), secrets.token_hex(16))
 

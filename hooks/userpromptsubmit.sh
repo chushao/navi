@@ -1,10 +1,10 @@
 #!/bin/bash
 # Lightweight hook that signals Navi the user sent a message (Claude starts working).
 # Only runs when session-status feature is enabled.
-[ -f /tmp/navi/features/session-status ] || exit 0
+[ -f /tmp/angrynavi/features/session-status ] || exit 0
 set -euo pipefail
-mkdir -p /tmp/navi/events
-chmod 700 /tmp/navi /tmp/navi/events 2>/dev/null || true
+mkdir -p /tmp/angrynavi/events
+chmod 700 /tmp/angrynavi /tmp/angrynavi/events 2>/dev/null || true
 python3 -c "
 import sys, json, os, secrets, time
 d = json.load(sys.stdin)
@@ -13,8 +13,8 @@ if not sid:
     sys.exit(0)
 eid = '{}-{}'.format(int(time.time()), secrets.token_hex(16))
 event = {'type': 'working', 'session_id': sid}
-tmp = '/tmp/navi/events/.working-' + eid + '.tmp'
-target = '/tmp/navi/events/working-' + eid + '.json'
+tmp = '/tmp/angrynavi/events/.working-' + eid + '.tmp'
+target = '/tmp/angrynavi/events/working-' + eid + '.json'
 with open(tmp, 'w') as f:
     json.dump(event, f)
 os.rename(tmp, target)

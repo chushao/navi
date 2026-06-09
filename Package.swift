@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "Navi",
+    name: "AngryNavi",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "Navi", targets: ["Navi"]),
+        .executable(name: "AngryNavi", targets: ["AngryNavi"]),
         .library(name: "NaviCore", targets: ["NaviCore"]),
     ],
     dependencies: [
@@ -20,7 +20,7 @@ let package = Package(
             path: "Sources/NaviCore"
         ),
         .executableTarget(
-            name: "Navi",
+            name: "AngryNavi",
             dependencies: ["NaviCore"],
             path: "Sources/Navi"
         ),

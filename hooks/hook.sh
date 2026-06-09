@@ -2,15 +2,15 @@
 set -euo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-APP="$PLUGIN_ROOT/Navi.app"
-APP_BINARY="$APP/Contents/MacOS/Navi"
-EVENTS_DIR="/tmp/navi/events"
-RESPONSES_DIR="/tmp/navi/responses"
+APP="$PLUGIN_ROOT/AngryNavi.app"
+APP_BINARY="$APP/Contents/MacOS/AngryNavi"
+EVENTS_DIR="/tmp/angrynavi/events"
+RESPONSES_DIR="/tmp/angrynavi/responses"
 mkdir -p "$EVENTS_DIR" "$RESPONSES_DIR"
 # Owner-only: event files hold Confidential tool input; response files are the
 # permission-decision channel that hook.sh trusts unconditionally. Chmod on
 # every fire so drift from earlier installs self-heals.
-chmod 700 /tmp/navi "$EVENTS_DIR" "$RESPONSES_DIR" 2>/dev/null || true
+chmod 700 /tmp/angrynavi "$EVENTS_DIR" "$RESPONSES_DIR" 2>/dev/null || true
 
 # Clean up stale event/response files older than 5 minutes
 find "$EVENTS_DIR" "$RESPONSES_DIR" -type f -mmin +5 -delete 2>/dev/null || true
@@ -20,15 +20,15 @@ find "$EVENTS_DIR" "$RESPONSES_DIR" -type f -mmin +5 -delete 2>/dev/null || true
 bash "$PLUGIN_ROOT/build.sh" >&2
 
 # Launch the monitor app if not running (skip if NAVI_NO_AUTO_LAUNCH is set).
-if [ -z "${NAVI_NO_AUTO_LAUNCH:-}" ] && [ ! -f "/tmp/navi/no-auto-launch" ] && ! pgrep -x Navi > /dev/null 2>&1; then
+if [ -z "${NAVI_NO_AUTO_LAUNCH:-}" ] && [ ! -f "/tmp/angrynavi/no-auto-launch" ] && ! pgrep -x AngryNavi > /dev/null 2>&1; then
     open "$APP" &
     sleep 0.5
 fi
 
-# Feature flags: hooks check /tmp/navi/features/<name> to skip work for
+# Feature flags: hooks check /tmp/angrynavi/features/<name> to skip work for
 # disabled experimental features.  Flag files can be empty (boolean) or
 # contain JSON config readable with feature_config().
-FEATURES_DIR="/tmp/navi/features"
+FEATURES_DIR="/tmp/angrynavi/features"
 
 # Read a JSON value from a feature flag file.  No current features use this
 # yet — it's infrastructure for future configurable experimental features.

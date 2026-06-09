@@ -16,7 +16,7 @@ public enum SessionStatus: Equatable {
         switch self {
         case .needsAttention: return .orange
         case .working: return .green
-        case .waitingForInput: return .blue
+        case .waitingForInput: return .red
         case .idle: return .green
         }
     }
