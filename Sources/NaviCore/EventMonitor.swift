@@ -195,8 +195,10 @@ public class EventMonitor: ObservableObject {
                 return now.timeIntervalSince(event.timestamp) > 60
             }
             // Discover new sessions BEFORE applying working signals so that
-            // a brand-new session's first working signal isn't dropped.
-            self.discoverSessions()
+            // a brand-new session's first working signal isn't dropped. The
+            // returned set is the authoritative list of session IDs backed by a
+            // live process, used to prune ghosts below.
+            let liveSessionIDs = self.discoverSessions()
             // Apply working signals AFTER regular events and discovery so
             // they always win over stale Stop events.
             for sid in workingSessions {
@@ -210,7 +212,13 @@ public class EventMonitor: ObservableObject {
                     self.events[i].response = "dismissed"
                 }
             }
-            self.sessions = self.sessions.filter { (_, info) in info.isAlive }
+            // Prune ghosts by verified identity: keep a session only when its
+            // own id is backed by a live process. Skip pruning entirely if the
+            // sessions dir couldn't be read (nil), so a transient FS error
+            // never wipes live sessions.
+            if let liveSessionIDs {
+                self.sessions = self.sessions.filter { $0.value.isAlive(among: liveSessionIDs) }
+            }
 
             // Check if build.sh rebuilt a newer version while we're running
             let restartMarker = "/tmp/navi/needs-restart"
@@ -225,22 +233,63 @@ public class EventMonitor: ObservableObject {
         }
     }
 
-    /// Scan ~/.claude/sessions/ for running Claude processes and add any
-    /// that Navi doesn't know about yet. Skips sessions already tracked
-    /// to avoid resetting their state (TTY, lastEventType, etc.).
-    private func discoverSessions() {
+    /// Parse Claude's `updatedAt` field (epoch milliseconds) into a Date.
+    private func parseUpdatedAt(_ any: Any?) -> Date? {
+        let ms: Double?
+        if let d = any as? Double { ms = d }
+        else if let i = any as? Int { ms = Double(i) }
+        else { ms = nil }
+        guard let ms, ms > 0 else { return nil }
+        return Date(timeIntervalSince1970: ms / 1000)
+    }
+
+    /// Scan ~/.claude/sessions/ for running Claude processes. Adds any session
+    /// Navi doesn't know about yet, and — for sessions already tracked —
+    /// refreshes the canonical `status`/`updatedAt` fields each poll so the
+    /// reconcile in SessionGroup.status can self-heal stale hook-derived state.
+    /// TTY/lastEventType are preserved for tracked sessions (the expensive TTY
+    /// lookup runs only on first discovery); the PID is refreshed when a resumed
+    /// session reappears under a new process so liveness and focus stay correct.
+    ///
+    /// Returns the set of session IDs backed by a live Claude process — the
+    /// authoritative input for pruning — or nil if the sessions directory could
+    /// not be read, in which case the caller must skip pruning rather than wipe
+    /// every session on a transient error.
+    @discardableResult
+    private func discoverSessions() -> Set<String>? {
         let sessionsDir = NSString(string: "~/.claude/sessions").expandingTildeInPath
         let fm = FileManager.default
-        guard let files = try? fm.contentsOfDirectory(atPath: sessionsDir) else { return }
+        guard let files = try? fm.contentsOfDirectory(atPath: sessionsDir) else { return nil }
+        var liveSessionIDs = Set<String>()
         for file in files where file.hasSuffix(".json") {
             let path = "\(sessionsDir)/\(file)"
             guard let data = fm.contents(atPath: path),
                   let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let sid = dict["sessionId"] as? String,
-                  sessions[sid] == nil,       // skip already-tracked sessions
-                  let pid = dict["pid"] as? Int,
-                  kill(pid_t(pid), 0) == 0    // only alive processes
+                  let sid = dict["sessionId"] as? String
             else { continue }
+
+            let claudeStatus = dict["status"] as? String ?? ""
+            let statusUpdatedAt = parseUpdatedAt(dict["updatedAt"])
+            // A session is live only if its file names a running process. This
+            // is the identity check that defeats PID reuse: the session id is
+            // recorded as live only when *its own* file points at a live PID.
+            let filePid = dict["pid"] as? Int
+            let alive = filePid.map { kill(pid_t($0), 0) == 0 } ?? false
+            if alive { liveSessionIDs.insert(sid) }
+
+            // Already tracked: refresh the canonical status fields, and refresh
+            // the PID if a resume moved this session id to a new process.
+            if sessions[sid] != nil {
+                sessions[sid]!.claudeStatus = claudeStatus
+                sessions[sid]!.statusUpdatedAt = statusUpdatedAt
+                if alive, let filePid, sessions[sid]!.pid != pid_t(filePid) {
+                    sessions[sid]!.pid = pid_t(filePid)
+                }
+                continue
+            }
+
+            // New session: require a live process before adding it.
+            guard alive, let pid = filePid else { continue }
             let cwd = dict["cwd"] as? String ?? ""
             let name = dict["name"] as? String ?? ""
             // Look up TTY from the process so terminal focus works immediately
@@ -267,12 +316,15 @@ public class EventMonitor: ObservableObject {
                 tty: tty,
                 sessionName: name,
                 pid: pid_t(pid),
-                lastActivity: Date()
+                lastActivity: Date(),
+                claudeStatus: claudeStatus,
+                statusUpdatedAt: statusUpdatedAt
             )
             if let info = sessions[sid] {
                 enrichmentService?.refresh(for: info)
             }
         }
+        return liveSessionIDs
     }
 
     private func updateSession(for event: NaviEvent) {

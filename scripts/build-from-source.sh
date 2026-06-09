@@ -59,10 +59,10 @@ if [ -n "${NAVI_LOCAL_BUILD:-}" ]; then
         --product Navi \
         --build-path "$OUT/.build" )
 else
-    ( cd "$DIR" && xcrun -sdk macosx swift build -c release \
-        -Xlinker -no_uuid \
-        --product Navi \
-        --build-path "$OUT/.build" )
+  ( cd "$DIR" && xcrun -sdk macosx swift build -c release \
+    -Xlinker -reproducible \
+    --product Navi \
+    --build-path "$OUT/.build" )
 fi
 
 cp "$DIR/Info.plist" "$APP/Contents/Info.plist"
