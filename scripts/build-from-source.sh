@@ -10,8 +10,8 @@ set -euo pipefail
 #
 # Usage: scripts/build-from-source.sh <output-dir>
 # Produces:
-#   <output-dir>/Navi.app
-#   <output-dir>/Navi.app.zip
+#   <output-dir>/AngryNavi.app
+#   <output-dir>/AngryNavi.app.zip
 
 OUT="${1:-}"
 if [ -z "$OUT" ]; then
@@ -24,7 +24,7 @@ mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$OUT/Navi.app"
+APP="$OUT/AngryNavi.app"
 
 VERSION=$(sed -n 's/.*"version".*"\([^"]*\)".*/\1/p' "$DIR/.claude-plugin/plugin.json")
 
@@ -36,10 +36,10 @@ trap 'status=$?
         echo "See README -> Troubleshooting." >&2
       fi' EXIT
 
-rm -rf "$APP" "$OUT/Navi.app.zip" "$OUT/.build"
+rm -rf "$APP" "$OUT/AngryNavi.app.zip" "$OUT/.build"
 mkdir -p "$APP/Contents/MacOS"
 
-echo "Building Navi v$VERSION..." >&2
+echo "Building AngryNavi v$VERSION..." >&2
 echo "== Build environment ==" >&2
 echo "macOS:     $(sw_vers -productVersion) ($(uname -m))" >&2
 echo "Developer: $(xcode-select -p 2>/dev/null || echo '(not configured)')" >&2
@@ -47,23 +47,29 @@ echo "Swift:     $(xcrun -sdk macosx swift --version 2>&1 | head -1)" >&2
 echo "SDK:       $(xcrun -sdk macosx --show-sdk-version 2>/dev/null) at $(xcrun -sdk macosx --show-sdk-path 2>/dev/null)" >&2
 echo "=======================" >&2
 
-# -Xlinker -reproducible: make two builds of identical inputs produce identical
-# binaries (CI's verify job depends on this). ld-prime keeps a valid LC_UUID
-# derived from a content hash, so the output stays bit-identical while remaining
-# debuggable. We deliberately avoid -no_uuid: ld(1) warns that UUID-less binaries
-# break the debugger and crash-reporting/symbolication tools, and a UUID-less
-# x86_64 build won't load under Rosetta 2 (which keys its translation cache on
-# the UUID). Requires the new linker (ld-prime, Xcode 15+); errors on older ld.
-( cd "$DIR" && xcrun -sdk macosx swift build -c release \
+# -Xlinker -no_uuid: zero out Mach-O LC_UUID so two builds of identical
+# inputs produce identical binaries (ld64 otherwise injects a random UUID).
+# This is required for the CI reproducibility gate, but it removes the LC_UUID
+# load command entirely, and dyld on macOS 26+ refuses to load a binary that
+# has none ("missing LC_UUID load command"). Local contributor builds set
+# NAVI_LOCAL_BUILD=1 (via build.sh's NAVI_BUILD_FROM_SOURCE path) to keep the
+# UUID so the app actually launches; CI leaves it unset for reproducibility.
+if [ -n "${NAVI_LOCAL_BUILD:-}" ]; then
+    ( cd "$DIR" && xcrun -sdk macosx swift build -c release \
+        --product AngryNavi \
+        --build-path "$OUT/.build" )
+else
+  ( cd "$DIR" && xcrun -sdk macosx swift build -c release \
     -Xlinker -reproducible \
-    --product Navi \
+    --product AngryNavi \
     --build-path "$OUT/.build" )
+fi
 
 cp "$DIR/Info.plist" "$APP/Contents/Info.plist"
-cp "$OUT/.build/release/Navi" "$APP/Contents/MacOS/Navi"
+cp "$OUT/.build/release/AngryNavi" "$APP/Contents/MacOS/AngryNavi"
 
 # Strip debug info; ad-hoc codesign (both deterministic given identical inputs).
-strip -S "$APP/Contents/MacOS/Navi"
+strip -S "$APP/Contents/MacOS/AngryNavi"
 codesign --sign - --force --deep "$APP"
 
 # Clear any extended attrs that may have been set by xcode-select or codesign.
@@ -75,12 +81,12 @@ find "$APP" -exec touch -t 200001010000 {} +
 # Plain zip with deterministic file ordering and -X to strip uid/gid/extra
 # timestamps. ditto --sequesterRsrc was tried first but produces __MACOSX/
 # entries with build-time mtimes that touch can't reach.
-( cd "$OUT" && find Navi.app | LC_ALL=C sort | zip -X -@ Navi.app.zip > /dev/null )
+( cd "$OUT" && find AngryNavi.app | LC_ALL=C sort | zip -X -@ AngryNavi.app.zip > /dev/null )
 
 # Drop the SPM build cache so it doesn't bloat the output directory.
 rm -rf "$OUT/.build"
 
 echo "" >&2
 echo "Built: $APP" >&2
-echo "Zip:   $OUT/Navi.app.zip" >&2
-echo "SHA-256: $(shasum -a 256 "$OUT/Navi.app.zip" | cut -d' ' -f1)" >&2
+echo "Zip:   $OUT/AngryNavi.app.zip" >&2
+echo "SHA-256: $(shasum -a 256 "$OUT/AngryNavi.app.zip" | cut -d' ' -f1)" >&2

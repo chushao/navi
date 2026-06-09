@@ -2,33 +2,45 @@
 set -euo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-APP="$PLUGIN_ROOT/Navi.app"
-APP_BINARY="$APP/Contents/MacOS/Navi"
-EVENTS_DIR="/tmp/navi/events"
-RESPONSES_DIR="/tmp/navi/responses"
+APP="$PLUGIN_ROOT/AngryNavi.app"
+APP_BINARY="$APP/Contents/MacOS/AngryNavi"
+EVENTS_DIR="/tmp/angrynavi/events"
+RESPONSES_DIR="/tmp/angrynavi/responses"
 mkdir -p "$EVENTS_DIR" "$RESPONSES_DIR"
 # Owner-only: event files hold Confidential tool input; response files are the
 # permission-decision channel that hook.sh trusts unconditionally. Chmod on
 # every fire so drift from earlier installs self-heals.
-chmod 700 /tmp/navi "$EVENTS_DIR" "$RESPONSES_DIR" 2>/dev/null || true
+chmod 700 /tmp/angrynavi "$EVENTS_DIR" "$RESPONSES_DIR" 2>/dev/null || true
 
 # Clean up stale event/response files older than 5 minutes
 find "$EVENTS_DIR" "$RESPONSES_DIR" -type f -mmin +5 -delete 2>/dev/null || true
+
+# Append a timestamped line to the debug log so "is the hook even firing in
+# this session" is a one-line tail instead of process archaeology.  Best
+# effort: never fail the hook over a logging error.
+DEBUG_LOG="/tmp/angrynavi/debug.log"
+navi_log() {
+    printf '%s [pid=%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${PPID:-?}" "$*" >> "$DEBUG_LOG" 2>/dev/null || true
+}
+# Keep the log bounded (last 500 lines) so it can't grow without limit.
+if [ -f "$DEBUG_LOG" ] && [ "$(wc -l < "$DEBUG_LOG" 2>/dev/null || echo 0)" -gt 1000 ]; then
+    tail -n 500 "$DEBUG_LOG" > "$DEBUG_LOG.tmp" 2>/dev/null && mv "$DEBUG_LOG.tmp" "$DEBUG_LOG" 2>/dev/null || true
+fi
 
 # Install if needed (build.sh fetches the release for plugin.json's version
 # and short-circuits when Navi.app's built-version marker already matches)
 bash "$PLUGIN_ROOT/build.sh" >&2
 
 # Launch the monitor app if not running (skip if NAVI_NO_AUTO_LAUNCH is set).
-if [ -z "${NAVI_NO_AUTO_LAUNCH:-}" ] && [ ! -f "/tmp/navi/no-auto-launch" ] && ! pgrep -x Navi > /dev/null 2>&1; then
+if [ -z "${NAVI_NO_AUTO_LAUNCH:-}" ] && [ ! -f "/tmp/angrynavi/no-auto-launch" ] && ! pgrep -x AngryNavi > /dev/null 2>&1; then
     open "$APP" &
     sleep 0.5
 fi
 
-# Feature flags: hooks check /tmp/navi/features/<name> to skip work for
+# Feature flags: hooks check /tmp/angrynavi/features/<name> to skip work for
 # disabled experimental features.  Flag files can be empty (boolean) or
 # contain JSON config readable with feature_config().
-FEATURES_DIR="/tmp/navi/features"
+FEATURES_DIR="/tmp/angrynavi/features"
 
 # Read a JSON value from a feature flag file.  No current features use this
 # yet — it's infrastructure for future configurable experimental features.
@@ -78,6 +90,8 @@ READ_RESULT=$(cat | python3 "$SCRIPT_DIR/parse_event.py")
 EVENT=$(echo "$READ_RESULT" | cut -f1)
 EVENT_ID=$(echo "$READ_RESULT" | cut -f2)
 
+navi_log "fired event=${EVENT:-?} id=${EVENT_ID:-?} yolo=$([ -f "$FEATURES_DIR/yolo-mode" ] && echo on || echo off)"
+
 # Track whether Navi responded so we can set NAVI_RESPONDED for potential
 # future use.  We intentionally do NOT write a cancel file on exit — instead
 # the card stays visible showing "Respond in terminal" and is dismissed by
@@ -95,11 +109,13 @@ case "$EVENT" in
                 case "$RESPONSE" in
                     approve)
                         NAVI_RESPONDED=true
+                        navi_log "decision=allow id=$EVENT_ID"
                         echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}'
                         exit 0
                         ;;
                     deny)
                         NAVI_RESPONDED=true
+                        navi_log "decision=deny id=$EVENT_ID"
                         echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}'
                         exit 0
                         ;;
@@ -109,6 +125,7 @@ case "$EVENT" in
         done
 
         # Timeout — fall back to terminal prompt
+        navi_log "decision=ask(timeout) id=$EVENT_ID"
         echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"ask"}}}'
         ;;
 

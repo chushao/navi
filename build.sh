@@ -10,8 +10,8 @@ set -euo pipefail
 # (for contributors testing source changes before publishing a release).
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_BUNDLE="$DIR/Navi.app"
-BINARY="$APP_BUNDLE/Contents/MacOS/Navi"
+APP_BUNDLE="$DIR/AngryNavi.app"
+BINARY="$APP_BUNDLE/Contents/MacOS/AngryNavi"
 BUILT_VERSION_FILE="$APP_BUNDLE/Contents/built-version"
 PLUGIN_JSON="$DIR/.claude-plugin/plugin.json"
 
@@ -24,12 +24,14 @@ REPO_SLUG="${REPO_SLUG%/}"
 if [ -n "${NAVI_BUILD_FROM_SOURCE:-}" ]; then
     TMP="$(mktemp -d)"
     trap 'rm -rf "$TMP"' EXIT
-    bash "$DIR/scripts/build-from-source.sh" "$TMP" >&2
+    # Keep the Mach-O LC_UUID so dyld on macOS 26+ will load the app. CI strips
+    # it (-no_uuid) for reproducibility; local builds don't need that.
+    NAVI_LOCAL_BUILD=1 bash "$DIR/scripts/build-from-source.sh" "$TMP" >&2
     rm -rf "$APP_BUNDLE"
-    mv "$TMP/Navi.app" "$APP_BUNDLE"
+    mv "$TMP/AngryNavi.app" "$APP_BUNDLE"
     echo "$TARGET_VERSION" > "$BUILT_VERSION_FILE"
-    mkdir -p /tmp/navi
-    echo "$TARGET_VERSION" > /tmp/navi/needs-restart
+    mkdir -p /tmp/angrynavi
+    echo "$TARGET_VERSION" > /tmp/angrynavi/needs-restart
     echo "Built from source: $APP_BUNDLE (v$TARGET_VERSION)" >&2
     exit 0
 fi
@@ -40,7 +42,7 @@ if [ -x "$BINARY" ] && [ -f "$BUILT_VERSION_FILE" ] && [ "$(cat "$BUILT_VERSION_
 fi
 
 RELEASE_TAG="v$TARGET_VERSION"
-ZIP_NAME="Navi.app.zip"
+ZIP_NAME="AngryNavi.app.zip"
 CHECKSUMS_NAME="checksums.txt"
 RELEASE_BASE="https://github.com/$REPO_SLUG/releases/download/$RELEASE_TAG"
 
@@ -153,8 +155,8 @@ xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 
 echo "$TARGET_VERSION" > "$BUILT_VERSION_FILE"
 
-# Signal a running Navi instance to show a restart banner with the new version.
-mkdir -p /tmp/navi
-echo "$TARGET_VERSION" > /tmp/navi/needs-restart
+# Signal a running AngryNavi instance to show a restart banner with the new version.
+mkdir -p /tmp/angrynavi
+echo "$TARGET_VERSION" > /tmp/angrynavi/needs-restart
 
 echo "Installed: $APP_BUNDLE (v$TARGET_VERSION)" >&2

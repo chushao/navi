@@ -1,11 +1,11 @@
 import Foundation
 
-/// File-based feature flag storage at `/tmp/navi/features/<name>`. Hooks read
+/// File-based feature flag storage at `/tmp/angrynavi/features/<name>`. Hooks read
 /// these files to skip work for disabled features without restarting Claude
 /// Code sessions. A file's existence means "enabled"; its contents (if any)
 /// carry JSON configuration.
 public enum FeatureFlags {
-    public static let directory = "/tmp/navi/features"
+    public static let directory = "/tmp/angrynavi/features"
 
     /// Write a boolean feature flag (empty file = enabled, absent = disabled).
     /// For features with configuration, use `setConfig` instead.
@@ -43,6 +43,11 @@ public enum FeatureFlags {
               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return nil }
         return dict
+    }
+
+    /// Whether a boolean feature flag is enabled (its file exists).
+    public static func isEnabled(_ name: String) -> Bool {
+        FileManager.default.fileExists(atPath: "\(directory)/\(name)")
     }
 
     /// Ensure the features directory exists with owner-only permissions.

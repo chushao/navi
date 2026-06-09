@@ -1,7 +1,7 @@
 {
-  "name": "navi",
+  "name": "angrynavi",
   "version": "1.2.2",
-  "description": "Floating macOS window that monitors Claude Code sessions with Working/Idle status, inline permission approve/deny, session discovery, per-event sounds, and menu bar icon.",
+  "description": "AngryNavi: a red-themed fork of Navi. Floating macOS window that monitors Claude Code sessions with Working/Idle status, inline permission approve/deny, session discovery, per-event sounds, yolo auto-approve, and menu bar icon.",
   "author": {
     "name": "Affirm"
   },

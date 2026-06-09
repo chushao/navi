@@ -14,14 +14,14 @@ class NaviWindow {
     static var ref: NSWindow?
 }
 
-let autoLaunchFlagPath = "/tmp/navi/no-auto-launch"
+let autoLaunchFlagPath = "/tmp/angrynavi/no-auto-launch"
 
 struct ContentView: View {
     @ObservedObject var monitor: EventMonitor
     @ObservedObject var floatingManager: FloatingWindowManager
     @ObservedObject var enrichmentService: EnrichmentService
     var isFloatingWindow: Bool = false
-    @State private var autoLaunch: Bool = !FileManager.default.fileExists(atPath: "/tmp/navi/no-auto-launch")
+    @State private var autoLaunch: Bool = !FileManager.default.fileExists(atPath: "/tmp/angrynavi/no-auto-launch")
     @State private var permissionSoundOn: Bool = UserDefaults.standard.object(forKey: "NaviSound.permission") as? Bool ?? true
     @State private var permissionSound: String = UserDefaults.standard.string(forKey: "NaviSound.permission.name") ?? "Glass"
     @State private var stopSoundOn: Bool = UserDefaults.standard.object(forKey: "NaviSound.stop") as? Bool ?? false
@@ -121,9 +121,9 @@ struct ContentView: View {
     private var controlsBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "bolt.circle.fill")
-                .foregroundStyle(.blue)
+                .foregroundStyle(.red)
                 .font(.system(size: 16))
-            Text("Navi")
+            Text("AngryNavi")
                 .font(.system(size: 14, weight: .semibold))
             Button {
                 showSettings.toggle()
@@ -200,11 +200,11 @@ struct ContentView: View {
             Divider()
                 .padding(.horizontal, 12)
 
-            Text("Navi v\(naviVersion)")
+            Text("AngryNavi v\(naviVersion)")
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 4)
-            Text("Thanks for using Navi! #ask-navi\nFeedback and feature suggestions are welcome!")
+            Text("Thanks for using AngryNavi! #ask-navi\nFeedback and feature suggestions are welcome!")
                 .font(.system(size: 9))
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -218,16 +218,16 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle(isOn: $autoLaunch) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Auto-launch Navi")
+                    Text("Auto-launch AngryNavi")
                         .font(.system(size: 11))
-                    Text("Automatically launch Navi when Claude triggers a hook event")
+                    Text("Automatically launch AngryNavi when Claude triggers a hook event")
                         .font(.system(size: 9))
                         .foregroundStyle(.secondary)
                 }
             }
             .toggleStyle(.switch)
             .controlSize(.mini)
-            .tint(.blue)
+            .tint(.red)
             .onChange(of: autoLaunch) { _, on in
                 if on {
                     try? FileManager.default.removeItem(atPath: autoLaunchFlagPath)
@@ -266,7 +266,7 @@ struct ContentView: View {
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Text("Quit Navi")
+                Text("Quit AngryNavi")
                     .font(.system(size: 11))
                     .foregroundStyle(.red)
                     .frame(maxWidth: .infinity)
@@ -302,7 +302,7 @@ struct ContentView: View {
             ) : isOn)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .tint(.blue)
+                .tint(.red)
                 .labelsHidden()
         }
         .padding(.leading, indent ? 12 : 0)
@@ -314,7 +314,7 @@ struct ContentView: View {
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
 
-            experimentalRow("Menu bar icon", subtitle: "Adds a menu bar icon for Navi.",
+            experimentalRow("Menu bar icon", subtitle: "Adds a menu bar icon for AngryNavi.",
                 isOn: Binding(get: { floatingManager.menuBarEnabled }, set: { floatingManager.menuBarEnabled = $0 }))
 
             if floatingManager.menuBarEnabled {
@@ -327,6 +327,9 @@ struct ContentView: View {
 
             experimentalRow("Permission details", subtitle: "Show a \"Show details\" button on each permission request that opens a popover with the full tool input.",
                 isOn: Binding(get: { floatingManager.permissionDetailsEnabled }, set: { floatingManager.permissionDetailsEnabled = $0 }))
+
+            experimentalRow("Yolo mode", subtitle: "⚠️ Automatically approve every permission request the moment it arrives, without asking. This approves ALL actions, including destructive ones. Use with caution.",
+                isOn: Binding(get: { floatingManager.yoloModeEnabled }, set: { floatingManager.yoloModeEnabled = $0 }))
 
             Text("Session details")
                 .font(.caption)
@@ -359,7 +362,7 @@ struct ContentView: View {
             Button {
                 FloatingWindowManager.relaunch()
             } label: {
-                Text("Restart Navi")
+                Text("Restart AngryNavi")
                     .font(.system(size: 11, weight: .medium))
                     .frame(maxWidth: .infinity)
             }
@@ -372,8 +375,8 @@ struct ContentView: View {
         HStack(spacing: 6) {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 10))
-                .foregroundStyle(.blue)
-            Text("Navi was rebuilt")
+                .foregroundStyle(.red)
+            Text("AngryNavi was rebuilt")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
             Spacer()
@@ -388,7 +391,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
-        .background(Color.blue.opacity(0.05))
+        .background(Color.red.opacity(0.05))
     }
 
     private var sessionRestartHint: some View {
@@ -396,7 +399,7 @@ struct ContentView: View {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 10))
                 .foregroundStyle(.orange)
-            Text("Navi updated — restart Claude sessions for new features")
+            Text("AngryNavi updated, restart Claude sessions for new features")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
             Spacer()
@@ -422,7 +425,7 @@ struct ContentView: View {
             Toggle("", isOn: isOn)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .tint(.blue)
+                .tint(.red)
                 .labelsHidden()
                 .onChange(of: isOn.wrappedValue) { _, on in
                     UserDefaults.standard.set(on, forKey: "NaviSound.\(key)")

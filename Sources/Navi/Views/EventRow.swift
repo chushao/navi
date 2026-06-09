@@ -172,7 +172,7 @@ struct EventRow: View {
                 monitor.respond(to: event.id, with: "approve")
             }
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .tint(.red)
                 .controlSize(.small)
         }
         .padding(.top, 2)
