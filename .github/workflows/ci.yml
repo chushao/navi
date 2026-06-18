@@ -28,6 +28,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Select Xcode (macos-14)
+        if: matrix.os == 'macos-14'
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app
+
       - name: Show toolchain
         run: |
           sw_vers
@@ -38,4 +42,10 @@ jobs:
         run: swift build --build-tests
 
       - name: Test
-        run: swift test --skip-build
+        run: |
+          set -o pipefail
+          swift test --skip-build 2>&1 | tee /tmp/swift_test_output.txt
+          grep -qE 'Test run with [1-9][0-9]* tests? passed' /tmp/swift_test_output.txt || {
+            echo '::error::Zero tests executed — swift-testing not discovered (toolchain regression?)' >&2
+            exit 1
+          }
