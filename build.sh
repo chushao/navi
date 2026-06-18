@@ -10,8 +10,8 @@ set -euo pipefail
 # (for contributors testing source changes before publishing a release).
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
-APP_BUNDLE="$DIR/Navi.app"
-BINARY="$APP_BUNDLE/Contents/MacOS/Navi"
+APP_BUNDLE="$DIR/AngryNavi.app"
+BINARY="$APP_BUNDLE/Contents/MacOS/AngryNavi"
 BUILT_VERSION_FILE="$APP_BUNDLE/Contents/built-version"
 PLUGIN_JSON="$DIR/.claude-plugin/plugin.json"
 
@@ -26,11 +26,11 @@ if [ -n "${NAVI_BUILD_FROM_SOURCE:-}" ]; then
     trap 'rm -rf "$TMP"' EXIT
     bash "$DIR/scripts/build-from-source.sh" "$TMP" >&2
     rm -rf "$APP_BUNDLE"
-    mv "$TMP/Navi.app" "$APP_BUNDLE"
+    mv "$TMP/AngryNavi.app" "$APP_BUNDLE"
     echo "$TARGET_VERSION" > "$BUILT_VERSION_FILE"
     mkdir -p /tmp/navi
     echo "$TARGET_VERSION" > /tmp/navi/needs-restart
-    echo "Built from source: $APP_BUNDLE (v$TARGET_VERSION)" >&2
+    echo "Built from source (AngryNavi): $APP_BUNDLE (v$TARGET_VERSION)" >&2
     exit 0
 fi
 
@@ -40,19 +40,19 @@ if [ -x "$BINARY" ] && [ -f "$BUILT_VERSION_FILE" ] && [ "$(cat "$BUILT_VERSION_
 fi
 
 RELEASE_TAG="v$TARGET_VERSION"
-ZIP_NAME="Navi.app.zip"
+ZIP_NAME="AngryNavi.app.zip"
 CHECKSUMS_NAME="checksums.txt"
 RELEASE_BASE="https://github.com/$REPO_SLUG/releases/download/$RELEASE_TAG"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Fetching Navi $RELEASE_TAG from $REPO_SLUG..." >&2
+echo "Fetching AngryNavi $RELEASE_TAG from $REPO_SLUG..." >&2
 
 if ! curl -fL --retry 3 --silent --show-error -o "$TMP/$ZIP_NAME" "$RELEASE_BASE/$ZIP_NAME"; then
     cat >&2 <<EOF
 
-Navi install aborted: could not download $RELEASE_BASE/$ZIP_NAME
+AngryNavi install aborted: could not download $RELEASE_BASE/$ZIP_NAME
 
 Usual causes:
   - The release for $RELEASE_TAG has not been published yet (CI may still be running)
@@ -65,20 +65,20 @@ EOF
 fi
 
 if ! curl -fL --retry 3 --silent --show-error -o "$TMP/$CHECKSUMS_NAME" "$RELEASE_BASE/$CHECKSUMS_NAME"; then
-    echo "Navi install aborted: could not download $RELEASE_BASE/$CHECKSUMS_NAME" >&2
+    echo "AngryNavi install aborted: could not download $RELEASE_BASE/$CHECKSUMS_NAME" >&2
     exit 1
 fi
 
 # Tamper / corruption check against the published checksums file.
 EXPECTED_SHA=$(awk -v name="$ZIP_NAME" '$2 == name || $2 == "*" name { print $1; exit }' "$TMP/$CHECKSUMS_NAME")
 if [ -z "$EXPECTED_SHA" ]; then
-    echo "Navi install aborted: $ZIP_NAME not listed in published checksums.txt." >&2
+    echo "AngryNavi install aborted: $ZIP_NAME not listed in published checksums.txt." >&2
     exit 1
 fi
 ACTUAL_SHA=$(shasum -a 256 "$TMP/$ZIP_NAME" | awk '{print $1}')
 if [ "$ACTUAL_SHA" != "$EXPECTED_SHA" ]; then
     cat >&2 <<EOF
-Navi install aborted: SHA-256 mismatch for $ZIP_NAME.
+AngryNavi install aborted: SHA-256 mismatch for $ZIP_NAME.
 
 Expected (from published checksums.txt): $EXPECTED_SHA
 Actual:                                  $ACTUAL_SHA
@@ -116,7 +116,7 @@ else
     elif printf '%s' "$ATT_OUT" | grep -qiE 'HTTP (401|403)|bad credentials|unauthorized|forbidden|timed? ?out|i/o timeout|connection (refused|reset)|could not resolve|dial tcp|network is unreachable|TLS'; then
         cat >&2 <<EOF
 
-Navi: skipping build-provenance attestation — the attestation API could not be
+AngryNavi: skipping build-provenance attestation — the attestation API could not be
 reached or the request was not authorized (an auth or network issue, not a
 problem with the downloaded file). Falling back to the SHA-256 checksum match,
 which already passed.
@@ -130,7 +130,7 @@ EOF
     else
         cat >&2 <<EOF
 
-Navi install aborted: build-provenance attestation verification FAILED.
+AngryNavi install aborted: build-provenance attestation verification FAILED.
 
 The SHA-256 matched checksums.txt, but the artifact's attestation could not be
 verified — this can indicate a tampered release. SHA-256 alone can't protect you

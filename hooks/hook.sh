@@ -2,8 +2,8 @@
 set -euo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-APP="$PLUGIN_ROOT/Navi.app"
-APP_BINARY="$APP/Contents/MacOS/Navi"
+APP="$PLUGIN_ROOT/AngryNavi.app"
+APP_BINARY="$APP/Contents/MacOS/AngryNavi"
 EVENTS_DIR="/tmp/navi/events"
 RESPONSES_DIR="/tmp/navi/responses"
 mkdir -p "$EVENTS_DIR" "$RESPONSES_DIR"
@@ -20,7 +20,7 @@ find "$EVENTS_DIR" "$RESPONSES_DIR" -type f -mmin +5 -delete 2>/dev/null || true
 bash "$PLUGIN_ROOT/build.sh" >&2
 
 # Launch the monitor app if not running (skip if NAVI_NO_AUTO_LAUNCH is set).
-if [ -z "${NAVI_NO_AUTO_LAUNCH:-}" ] && [ ! -f "/tmp/navi/no-auto-launch" ] && ! pgrep -x Navi > /dev/null 2>&1; then
+if [ -z "${NAVI_NO_AUTO_LAUNCH:-}" ] && [ ! -f "/tmp/navi/no-auto-launch" ] && ! pgrep -x AngryNavi > /dev/null 2>&1; then
     open "$APP" &
     sleep 0.5
 fi
