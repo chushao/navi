@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Hook-time install entry point. Reads the target version from plugin.json,
 # fetches the matching release artifact from the repo identified in
-# plugin.json's "repository" field, verifies it, and extracts Navi.app
+# plugin.json's "repository" field, verifies it, and extracts AngryNavi.app
 # into the plugin directory.
 #
 # Set NAVI_BUILD_FROM_SOURCE=1 to compile locally instead of fetching
@@ -28,13 +28,13 @@ if [ -n "${NAVI_BUILD_FROM_SOURCE:-}" ]; then
     rm -rf "$APP_BUNDLE"
     mv "$TMP/AngryNavi.app" "$APP_BUNDLE"
     echo "$TARGET_VERSION" > "$BUILT_VERSION_FILE"
-    mkdir -p /tmp/navi
-    echo "$TARGET_VERSION" > /tmp/navi/needs-restart
+    mkdir -p /tmp/angrynavi
+    echo "$TARGET_VERSION" > /tmp/angrynavi/needs-restart
     echo "Built from source (AngryNavi): $APP_BUNDLE (v$TARGET_VERSION)" >&2
     exit 0
 fi
 
-# Short-circuit if Navi.app is already at the target version.
+# Short-circuit if AngryNavi.app is already at the target version.
 if [ -x "$BINARY" ] && [ -f "$BUILT_VERSION_FILE" ] && [ "$(cat "$BUILT_VERSION_FILE")" = "$TARGET_VERSION" ]; then
     exit 0
 fi
@@ -154,7 +154,7 @@ xattr -cr "$APP_BUNDLE" 2>/dev/null || true
 echo "$TARGET_VERSION" > "$BUILT_VERSION_FILE"
 
 # Signal a running Navi instance to show a restart banner with the new version.
-mkdir -p /tmp/navi
-echo "$TARGET_VERSION" > /tmp/navi/needs-restart
+mkdir -p /tmp/angrynavi
+echo "$TARGET_VERSION" > /tmp/angrynavi/needs-restart
 
 echo "Installed: $APP_BUNDLE (v$TARGET_VERSION)" >&2

@@ -106,7 +106,7 @@ class FloatingWindowManager: ObservableObject {
         FeatureFlags.set("permission-details", enabled: permissionDetailsEnabled)
         FeatureFlags.set("context-alerts", enabled: contextAlertsEnabled)
         // Core features — always enabled. Flag files written so hooks that
-        // still gate on `/tmp/navi/features/<name>` continue to work.
+        // still gate on `/tmp/angrynavi/features/<name>` continue to work.
         FeatureFlags.set("terminal-focus", enabled: true)
         FeatureFlags.set("auto-dismiss", enabled: true)
         FeatureFlags.set("instant-notify", enabled: true)

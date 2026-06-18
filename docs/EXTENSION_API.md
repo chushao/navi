@@ -1,16 +1,16 @@
-# Navi Extension API
+# AngryNavi Extension API
 
-Navi supports a simple file-drop extension point: any process can write an event JSON file to `/tmp/navi/events/` and Navi will render it as a card in the floating window.
+AngryNavi supports a simple file-drop extension point: any process can write an event JSON file to `/tmp/angrynavi/events/` and AngryNavi will render it as a card in the floating window.
 
-This lets private or internal tooling surface information in Navi without any code living in this repository.
+This lets private or internal tooling surface information in AngryNavi without any code living in this repository.
 
 ## The `info` event type
 
-Navi defines one external event type: **`info`**. It is a passive, non-interactive status card — no approve/deny buttons, no permission semantics.
+AngryNavi defines one external event type: **`info`**. It is a passive, non-interactive status card — no approve/deny buttons, no permission semantics.
 
 ### Schema
 
-Write a JSON file to `/tmp/navi/events/<id>.json` using an atomic temp-then-rename to avoid partial reads:
+Write a JSON file to `/tmp/angrynavi/events/<id>.json` using an atomic temp-then-rename to avoid partial reads:
 
 ```json
 {
@@ -40,13 +40,13 @@ Write a JSON file to `/tmp/navi/events/<id>.json` using an atomic temp-then-rena
 | `description` | no | Reserved for AI-generated or untrusted text. Rendered with a distinct italic style. Leave empty if unused. |
 | `session_id` | no | Binds the card to a specific session. If the session is no longer tracked, the card renders sessionless. |
 | `session_name` | no | Human-readable session name override. Leave empty to inherit from session state. |
-| `pid`, `cwd`, `tty` | no | Leave `0`/`""` for external producers. Used internally by Navi's own hooks. |
+| `pid`, `cwd`, `tty` | no | Leave `0`/`""` for external producers. Used internally by AngryNavi's own hooks. |
 | `tool_use_id`, `expires` | no | Leave `""` / `0`. Only meaningful for `permission` events. |
 
 ### Bash example
 
 ```bash
-NAVI_EVENTS="/tmp/navi/events"
+NAVI_EVENTS="/tmp/angrynavi/events"
 if [ -d "$NAVI_EVENTS" ]; then
   ID="$(date +%s)-$(openssl rand -hex 16)"
   printf '{"id":"%s","timestamp":%s,"type":"info","title":"Monthly spend","body":"%s","description":"","session_id":"%s","session_name":"","pid":0,"cwd":"","tty":"","tool_use_id":"","expires":0}\n' \
@@ -56,7 +56,7 @@ if [ -d "$NAVI_EVENTS" ]; then
 fi
 ```
 
-The `if [ -d "$NAVI_EVENTS" ]` guard makes the integration a no-op when Navi isn't installed.
+The `if [ -d "$NAVI_EVENTS" ]` guard makes the integration a no-op when AngryNavi isn't installed.
 
 ## Behaviour guarantees
 
@@ -65,18 +65,18 @@ The `if [ -d "$NAVI_EVENTS" ]` guard makes the integration a no-op when Navi isn
 - `info` cards do **not suppress** pending permission cards and do not dismiss them.
 - Non-info events (Stop, Notification, etc.) arriving for the same session do **not** remove existing info cards.
 - Cards are **sticky** — they do not auto-expire. They stay until the user dismisses them (the X button) or the producer resolves them (see below).
-- Navi uses the blue `info.circle.fill` icon and plays the "Info" sound (off by default, configurable in Settings).
+- AngryNavi uses the blue `info.circle.fill` icon and plays the "Info" sound (off by default, configurable in Settings).
 
 ## Removing a card (producer-side resolve)
 
-To remove your card programmatically, atomically write a `resolve-<nonce>.json` file to `/tmp/navi/events/`:
+To remove your card programmatically, atomically write a `resolve-<nonce>.json` file to `/tmp/angrynavi/events/`:
 
 ```json
 { "id": "<the-card-id-you-originally-wrote>" }
 ```
 
 ```bash
-NAVI_EVENTS="/tmp/navi/events"
+NAVI_EVENTS="/tmp/angrynavi/events"
 if [ -d "$NAVI_EVENTS" ]; then
   RESOLVE_NONCE="$(date +%s)-$(openssl rand -hex 8)"
   printf '{"id":"%s"}\n' "$YOUR_CARD_ID" \
@@ -86,7 +86,7 @@ if [ -d "$NAVI_EVENTS" ]; then
 fi
 ```
 
-The file must be named `resolve-<anything>.json` (Navi matches the `resolve-` prefix). Use a fresh nonce; never reuse resolve file names. The file is consumed immediately — you don't need to clean it up.
+The file must be named `resolve-<anything>.json` (AngryNavi matches the `resolve-` prefix). Use a fresh nonce; never reuse resolve file names. The file is consumed immediately — you don't need to clean it up.
 
 If the card has already been dismissed by the user, the resolve file is silently ignored (no error).
 
@@ -95,11 +95,11 @@ If the card has already been dismissed by the user, the resolve file is silently
 - The `id` nonce must be at least 16 random bytes (128 bits). Do not reuse ids.
 - Content in `body` is rendered as trusted display text (same visual weight as tool args). Keep it short and controlled. Put AI-generated or user-derived freeform text in `description` instead.
 - Validate `session_id` against `^[A-Za-z0-9_-]+$` before using it in any file path on the producer side.
-- Write atomically: write to a `.tmp` file then `mv`/`os.rename` to the final `.json` name. Navi only reads `.json` files.
-- `/tmp/navi/events/` is created with mode `0700` (owner-only) by Navi. Your producer runs as the same user, so writes succeed.
+- Write atomically: write to a `.tmp` file then `mv`/`os.rename` to the final `.json` name. AngryNavi only reads `.json` files.
+- `/tmp/angrynavi/events/` is created with mode `0700` (owner-only) by AngryNavi. Your producer runs as the same user, so writes succeed.
 
 ## Built-in `info` producer: context window alerts
 
-Navi ships a built-in `info` producer for context window alerts. When enabled (Settings → Experimental → Context window alerts), `EnrichmentService` polls session transcripts on a timer and injects an `info` card directly into `EventMonitor` when a session's input token count crosses the configured warning or critical threshold (defaults: 200K / 400K).
+AngryNavi ships a built-in `info` producer for context window alerts. When enabled (Settings → Experimental → Context window alerts), `EnrichmentService` polls session transcripts on a timer and injects an `info` card directly into `EventMonitor` when a session's input token count crosses the configured warning or critical threshold (defaults: 200K / 400K).
 
-The feature is gated behind the `context-alerts` feature flag (`/tmp/navi/features/context-alerts`), which the Settings toggle manages. Per-session crossing state is tracked in memory. When context drops back below 140K (e.g. after `/compact`), all stored alert event IDs for that session are resolved and their cards disappear automatically.
+The feature is gated behind the `context-alerts` feature flag (`/tmp/angrynavi/features/context-alerts`), which the Settings toggle manages. Per-session crossing state is tracked in memory. When context drops back below 140K (e.g. after `/compact`), all stored alert event IDs for that session are resolved and their cards disappear automatically.

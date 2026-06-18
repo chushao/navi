@@ -1,4 +1,4 @@
-# Navi 🧭
+# AngryNavi 🧭
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)](https://github.com/Affirm/navi)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.anthropic.com/en/docs/claude-code)
@@ -18,7 +18,7 @@ See what every Claude Code session is doing across all your terminals — at a g
 /plugin install navi@navi
 ```
 
-Hooks are registered automatically. Navi builds and launches itself the first time an event fires.
+Hooks are registered automatically. AngryNavi builds and launches itself the first time an event fires.
 
 ## What You Get
 
@@ -55,8 +55,8 @@ If you'd rather not use the plugin system:
 ```bash
 git clone https://github.com/Affirm/navi.git
 cd navi
-bash build.sh        # Downloads + verifies the published Navi.app release
-open Navi.app
+bash build.sh        # Downloads + verifies the published AngryNavi.app release
+open AngryNavi.app
 ```
 
 Then register the hooks from `hooks/hooks.json` in your `~/.claude/settings.json`, replacing `${CLAUDE_PLUGIN_ROOT}` with the absolute path to this directory.
@@ -66,19 +66,19 @@ Then register the hooks from `hooks/hooks.json` in your `~/.claude/settings.json
 ```
 Claude Code session
   │
-  ├── PreToolUse ────────→ pretooluse.sh ────────→ captures tool_use_id ──→ /tmp/navi/pretooluse/
-  ├── PermissionRequest ─→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/navi/events/
-  ├── PostToolUse ───────→ hook.sh → parse_event.py → resolve signal ─────→ /tmp/navi/events/
-  ├── Stop ──────────────→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/navi/events/
-  ├── StopFailure ───────→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/navi/events/
-  ├── Notification ──────→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/navi/events/
-  └── PostToolUseFailure → hook.sh → parse_event.py → resolve signal ─────→ /tmp/navi/events/
+  ├── PreToolUse ────────→ pretooluse.sh ────────→ captures tool_use_id ──→ /tmp/angrynavi/pretooluse/
+  ├── PermissionRequest ─→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/angrynavi/events/
+  ├── PostToolUse ───────→ hook.sh → parse_event.py → resolve signal ─────→ /tmp/angrynavi/events/
+  ├── Stop ──────────────→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/angrynavi/events/
+  ├── StopFailure ───────→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/angrynavi/events/
+  ├── Notification ──────→ hook.sh → parse_event.py → event JSON ─────────→ /tmp/angrynavi/events/
+  └── PostToolUseFailure → hook.sh → parse_event.py → resolve signal ─────→ /tmp/angrynavi/events/
 
-~/.claude/sessions/*.json ──→ Navi session discovery (PID liveness + TTY lookup)
-External producers ────────→ drop info event JSON ────────────────────────→ /tmp/navi/events/
+~/.claude/sessions/*.json ──→ AngryNavi session discovery (PID liveness + TTY lookup)
+External producers ────────→ drop info event JSON ────────────────────────→ /tmp/angrynavi/events/
 
-Navi.app
-  ├── polls /tmp/navi/events/ (instant via kqueue watcher + fallback timer)
+AngryNavi.app
+  ├── polls /tmp/angrynavi/events/ (instant via kqueue watcher + fallback timer)
   ├── discovers sessions from ~/.claude/sessions/
   ├── tracks Working/Idle/Dead status per session
   ├── EnrichmentService polls transcripts → git status, model, mode, context tokens
@@ -87,23 +87,23 @@ Navi.app
         │
         User clicks Approve/Deny
         │
-        writes response to /tmp/navi/responses/<event-id>
+        writes response to /tmp/angrynavi/responses/<event-id>
         │
         hook.sh reads response, returns decision to Claude Code
 ```
 
-For permission requests, `hook.sh` writes an event file and polls for a response file. When you click Approve/Deny, Navi writes the response, the hook picks it up and returns the decision to Claude Code. If no response comes within 120 seconds, it falls back to the terminal prompt.
+For permission requests, `hook.sh` writes an event file and polls for a response file. When you click Approve/Deny, AngryNavi writes the response, the hook picks it up and returns the decision to Claude Code. If no response comes within 120 seconds, it falls back to the terminal prompt.
 
-For architecture details and guidance on extending Navi, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+For architecture details and guidance on extending AngryNavi, see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## External Plugins
 
-Navi exposes a simple file-drop API: any process can write a JSON event to `/tmp/navi/events/` and it appears as a card in the floating window. This lets you surface custom monitoring, cost tracking, or workflow notifications without touching the Navi source or forking the repo.
+AngryNavi exposes a simple file-drop API: any process can write a JSON event to `/tmp/angrynavi/events/` and it appears as a card in the floating window. This lets you surface custom monitoring, cost tracking, or workflow notifications without touching the AngryNavi source or forking the repo.
 
 The `info` event type is the external interface — it produces non-interactive, sticky status cards (no approve/deny buttons, no permission semantics). Cards stay visible until the user dismisses them or your producer resolves them.
 
 ```bash
-NAVI_EVENTS="/tmp/navi/events"
+NAVI_EVENTS="/tmp/angrynavi/events"
 if [ -d "$NAVI_EVENTS" ]; then
   ID="$(date +%s)-$(openssl rand -hex 16)"
   printf '{"id":"%s","timestamp":%s,"type":"info","title":"My Plugin","body":"Hello from my plugin","description":"","session_id":"%s","session_name":"","pid":0,"cwd":"","tty":"","tool_use_id":"","expires":0}\n' \
@@ -113,7 +113,7 @@ if [ -d "$NAVI_EVENTS" ]; then
 fi
 ```
 
-The `[ -d "$NAVI_EVENTS" ]` guard makes the integration a no-op when Navi isn't installed.
+The `[ -d "$NAVI_EVENTS" ]` guard makes the integration a no-op when AngryNavi isn't installed.
 
 **Example use cases:** monthly API spend vs. budget, CI/CD status, custom tool-use summaries, team notifications.
 
@@ -123,8 +123,8 @@ See [`docs/EXTENSION_API.md`](docs/EXTENSION_API.md) for the full schema, atomic
 
 ```bash
 claude plugin uninstall navi
-pkill -x Navi 2>/dev/null
-rm -rf /tmp/navi
+pkill -x AngryNavi 2>/dev/null
+rm -rf /tmp/angrynavi
 ```
 
 ## Development
@@ -132,8 +132,8 @@ rm -rf /tmp/navi
 ```bash
 git clone https://github.com/Affirm/navi.git
 cd navi
-bash scripts/build-from-source.sh ./out   # Compiles Sources/ into ./out/Navi.app(.zip)
-open ./out/Navi.app                       # Launch
+bash scripts/build-from-source.sh ./out   # Compiles Sources/ into ./out/AngryNavi.app(.zip)
+open ./out/AngryNavi.app                  # Launch
 ```
 
 `bash build.sh` is the *install* entrypoint — it downloads the pre-built release artifact for the version in `plugin.json` and verifies its checksum + Sigstore attestation, but does not compile from source. Contributors compile via `scripts/build-from-source.sh` (or `NAVI_BUILD_FROM_SOURCE=1 bash build.sh` to install a local build in place). See [`CONTRIBUTING.md`](CONTRIBUTING.md) for architecture, the feature-flag system, and guidance on adding experimental features.
@@ -148,7 +148,7 @@ failed to build module 'SwiftUI', this SDK is not supported by the compiler
 while this compiler is 'Apple Swift version 6.0.3 effective-5.10 (swiftlang-6.0.3.1.10...)'
 ```
 
-This is not a Navi bug — it means your Xcode Command Line Tools install is inconsistent: the SDK (`.swiftmodule` files for SwiftUI, AppKit, etc.) was produced by a sibling build of the Swift compiler than the one `swiftc` reports. That usually happens after a partial macOS/CLT update, or when Xcode.app and CLT end up on different update cycles.
+This is not an AngryNavi bug — it means your Xcode Command Line Tools install is inconsistent: the SDK (`.swiftmodule` files for SwiftUI, AppKit, etc.) was produced by a sibling build of the Swift compiler than the one `swiftc` reports. That usually happens after a partial macOS/CLT update, or when Xcode.app and CLT end up on different update cycles.
 
 **Check what's active:**
 
@@ -188,13 +188,13 @@ After any of these, run `bash scripts/build-from-source.sh ./out` (or `bash buil
 
 Created by [@Clast](https://github.com/Clast)
 
-Navi started inside Affirm's internal plugin catalog before it became this standalone repo, so some contributors don't appear in this repo's git history. Special thanks to:
+AngryNavi started inside Affirm's internal plugin catalog before it became this standalone repo, so some contributors don't appear in this repo's git history. Special thanks to:
 
 - [@KieranLitschel](https://github.com/KieranLitschel) — improved session status (Working / Idle), session names, auto-dismiss, jump-to-terminal button
 
 - [@manassarpatwar](https://github.com/manassarpatwar) — menu bar UI, instant filesystem-watcher notifications, plus a long tail of stability fixes
 
-- [@tarkatronic](https://github.com/tarkatronic) — suggested open-sourcing Navi and helped with open-source setup
+- [@tarkatronic](https://github.com/tarkatronic) — suggested open-sourcing AngryNavi and helped with open-source setup
 
 ## License
 

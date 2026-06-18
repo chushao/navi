@@ -1,16 +1,16 @@
-# Navi - Claude Code Session Monitor
+# AngryNavi - Claude Code Session Monitor
 
-Navi is a floating macOS window that monitors all your Claude Code sessions. It shows which sessions have finished, which need permission approvals, and lets you approve/deny permissions without switching terminals.
+AngryNavi is a floating macOS window that monitors all your Claude Code sessions. It shows which sessions have finished, which need permission approvals, and lets you approve/deny permissions without switching terminals.
 
-Navi is a Claude Code plugin. Hooks are defined in `hooks/hooks.json` and registered automatically when the plugin is installed.
+AngryNavi is a Claude Code plugin. Hooks are defined in `hooks/hooks.json` and registered automatically when the plugin is installed.
 
 This file contains instructions for Claude Code agents. For human contributor guidance (dev setup, architecture, feature flag system, how to add features), see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Setup Instructions
 
-When the user asks to "set up Navi", "install Navi", or similar:
+When the user asks to "set up AngryNavi", "install AngryNavi", or similar:
 
-**Before running any commands, tell the user what you're about to do** (download and verify the published Navi.app release, then launch it — hooks are handled by the plugin system) **and use the AskUserQuestion tool with Yes/No options to confirm before proceeding.**
+**Before running any commands, tell the user what you're about to do** (download and verify the published AngryNavi.app release, then launch it — hooks are handled by the plugin system) **and use the AskUserQuestion tool with Yes/No options to confirm before proceeding.**
 
 1. Install the app (downloads and verifies the release artifact for the version in `plugin.json`):
    ```bash
@@ -19,10 +19,10 @@ When the user asks to "set up Navi", "install Navi", or similar:
 
 2. Launch the app:
    ```bash
-   open Navi.app
+   open AngryNavi.app
    ```
 
-3. Confirm to the user that Navi is installed. It will auto-launch on future hook events even if closed.
+3. Confirm to the user that AngryNavi is installed. It will auto-launch on future hook events even if closed.
 
 **If the user wants manual-launch only**, also add `NAVI_NO_AUTO_LAUNCH` to the `env` section of `~/.claude/settings.json`:
    ```json
@@ -32,22 +32,22 @@ When the user asks to "set up Navi", "install Navi", or similar:
      }
    }
    ```
-   With this set, events are still written to `/tmp/navi/events/` and will be picked up when the user manually runs `open Navi.app`.
+   With this set, events are still written to `/tmp/angrynavi/events/` and will be picked up when the user manually runs `open AngryNavi.app`.
 
 ## Removal Instructions
 
-When the user asks to "remove Navi", "uninstall Navi", or similar:
+When the user asks to "remove AngryNavi", "uninstall AngryNavi", or similar:
 
 **Before running any commands, tell the user what you're about to do** (kill the running app and clean up temp files) **and use the AskUserQuestion tool with Yes/No options to confirm before proceeding.**
 
 1. Kill the running app:
    ```bash
-   pkill -x Navi 2>/dev/null
+   pkill -x AngryNavi 2>/dev/null
    ```
 
 2. Clean up temp files:
    ```bash
-   rm -rf /tmp/navi
+   rm -rf /tmp/angrynavi
    ```
 
-3. Confirm to the user that Navi has been removed. The plugin can be uninstalled with `claude plugin uninstall navi`.
+3. Confirm to the user that AngryNavi has been removed. The plugin can be uninstalled with `claude plugin uninstall navi`.

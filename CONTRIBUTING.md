@@ -1,6 +1,6 @@
-# Contributing to Navi
+# Contributing to AngryNavi
 
-Thanks for your interest in contributing. This guide covers dev setup, Navi's architecture, and the patterns you'll need to add or evolve features.
+Thanks for your interest in contributing. This guide covers dev setup, AngryNavi's architecture, and the patterns you'll need to add or evolve features.
 
 ## Code of Conduct
 
@@ -11,25 +11,25 @@ This project adheres to the [Open Code of Conduct](https://github.com/spotify/co
 ```bash
 git clone https://github.com/Affirm/navi.git
 cd navi
-bash build.sh        # Downloads + verifies the published Navi.app release
-open Navi.app        # Launch
+bash build.sh        # Downloads + verifies the published AngryNavi.app release
+open AngryNavi.app   # Launch
 ```
 
-Navi is a SwiftUI app built with Swift Package Manager. Requires macOS + Xcode Command Line Tools (`xcode-select --install`). The test target depends on the standalone [`swift-testing`](https://github.com/swiftlang/swift-testing) package; runtime app code has no third-party dependencies.
+AngryNavi is a SwiftUI app built with Swift Package Manager. Requires macOS + Xcode Command Line Tools (`xcode-select --install`). The test target depends on the standalone [`swift-testing`](https://github.com/swiftlang/swift-testing) package; runtime app code has no third-party dependencies.
 
-`bash build.sh` is the hook-time install entrypoint: it reads the target version from `.claude-plugin/plugin.json`, fetches `Navi.app.zip` from the matching GitHub Release, verifies it against the release's `checksums.txt`, and (if the `gh` CLI is installed) also verifies the build-provenance attestation against the Sigstore transparency log. **It does not compile from source.** Releases are produced exclusively by `.github/workflows/release.yml`, which builds the same artifact twice on separate `macos-15` runners and refuses to publish if the two builds' SHA-256s diverge — that two-build check is what catches reproducibility regressions before they reach users.
+`bash build.sh` is the hook-time install entrypoint: it reads the target version from `.claude-plugin/plugin.json`, fetches `AngryNavi.app.zip` from the matching GitHub Release, verifies it against the release's `checksums.txt`, and (if the `gh` CLI is installed) also verifies the build-provenance attestation against the Sigstore transparency log. **It does not compile from source.** Releases are produced exclusively by `.github/workflows/release.yml`, which builds the same artifact twice on separate `macos-15` runners and refuses to publish if the two builds' SHA-256s diverge — that two-build check is what catches reproducibility regressions before they reach users.
 
 To compile locally instead of fetching (e.g., when validating source changes before publishing a release), use either:
 
 ```bash
-bash scripts/build-from-source.sh ./out   # produces ./out/Navi.app and ./out/Navi.app.zip
+bash scripts/build-from-source.sh ./out   # produces ./out/AngryNavi.app and ./out/AngryNavi.app.zip
 # or, to install in place:
 NAVI_BUILD_FROM_SOURCE=1 bash build.sh
 ```
 
 `scripts/build-from-source.sh` is what CI's release workflow runs, so a successful local build is a strong signal that the eventual release will succeed.
 
-Run unit tests with `swift test`. Tests live in `Tests/NaviCoreTests/` and exercise the `NaviCore` library target. SwiftUI views and the app shell (the `Navi` executable target) are not directly unit-tested; put testable logic in `NaviCore`.
+Run unit tests with `swift test`. Tests live in `Tests/NaviCoreTests/` and exercise the `NaviCore` library target. SwiftUI views and the app shell (the `AngryNavi` executable target) are not directly unit-tested; put testable logic in `NaviCore`.
 
 ## Architecture
 
@@ -37,44 +37,45 @@ Run unit tests with `swift test`. Tests live in `Tests/NaviCoreTests/` and exerc
 
 | Path | Purpose |
 |------|---------|
-| `Package.swift` | SPM manifest: `NaviCore` library, `Navi` executable, `NaviCoreTests` test target |
+| `Package.swift` | SPM manifest: `NaviCore` library, `AngryNavi` executable, `NaviCoreTests` test target |
 | `Sources/NaviCore/` | Library: models (`NaviEvent`, `SessionInfo`, `SessionGroup`, `SessionStatus`, `GitInfo`, `TranscriptInfo`, `PRInfo`, `SubagentInfo`), `EventMonitor`, `FeatureFlags`, helpers (`relativeTime`, `focusTerminal`, `naviLog`), `naviCurrentVersion`, `SessionEnrichmentProvider` protocol |
 | `Sources/Navi/` | Executable: `@main` + `NaviAppDelegate`, `FloatingWindowManager`, `MenuBarManager`, `EnrichmentService` (conforms to `SessionEnrichmentProvider`), pastel palette, SwiftUI views (`ContentView`, `SessionSection`, `EventRow`, `WindowAccessor`, `FlowLayout`) |
 | `Tests/NaviCoreTests/` | Swift Testing suites for `NaviCore` |
 | `hooks/hooks.json` | Registers Claude Code hooks (loaded at session start) |
 | `hooks/hook.sh` | Main hook entrypoint for PermissionRequest, Stop, StopFailure, Notification, PostToolUse, PostToolUseFailure |
 | `hooks/pretooluse.sh` | Lightweight PreToolUse hook — captures `tool_use_id` for auto-dismiss |
-| `hooks/parse_event.py` | Parses hook payload JSON, writes event/resolve files to `/tmp/navi/events/` |
+| `hooks/userpromptsubmit.sh` | Lightweight UserPromptSubmit hook — signals "Working" status |
+| `hooks/parse_event.py` | Parses hook payload JSON, writes event/resolve files to `/tmp/angrynavi/events/` |
 | `docs/EXTENSION_API.md` | Public contract for external info-event producers — schema, atomicity rules, security constraints |
-| `build.sh` | Hook-time install entrypoint: fetches the published release for the version in `plugin.json`, verifies checksums.txt + Sigstore attestation, extracts `Navi.app` |
+| `build.sh` | Hook-time install entrypoint: fetches the published release for the version in `plugin.json`, verifies checksums.txt + Sigstore attestation, extracts `AngryNavi.app` |
 | `scripts/build-from-source.sh` | Reproducible-build recipe used by CI and by contributors building locally |
 | `.github/workflows/release.yml` | Builds two artifacts on `macos-15`, compares SHA-256s, attests provenance, publishes the release |
 
 ### EnrichmentService boundary
 
-`EnrichmentService` lives in the `Navi` target because it depends on
+`EnrichmentService` lives in the `AngryNavi` target because it depends on
 `FloatingWindowManager` (toggle state). `EventMonitor` lives in `NaviCore`
 and needs to call into the service on session updates / evictions, so
 `NaviCore` defines a `SessionEnrichmentProvider` protocol that
 `EnrichmentService` conforms to. Add new methods to the protocol if
-`EventMonitor` needs to talk to the service in new ways; views in `Navi`
+`EventMonitor` needs to talk to the service in new ways; views in `AngryNavi`
 read concrete service state (`gitInfoByCwd`, etc.) directly.
 
 ### Event Flow
 
 1. Claude Code fires a hook event (e.g., `PermissionRequest`)
 2. `hook.sh` runs → conditionally captures TTY/PPID based on feature flags → calls `parse_event.py`
-3. `parse_event.py` writes a JSON event file to `/tmp/navi/events/`
-4. `Navi.app` watches the events directory (kqueue + fallback poll) and displays the event
+3. `parse_event.py` writes a JSON event file to `/tmp/angrynavi/events/`
+4. `AngryNavi.app` watches the events directory (kqueue + fallback poll) and displays the event
 
 See the diagram in the [README](README.md#how-it-works) for the full set of hook-to-script mappings.
 
 ### Feature Flag System
 
-Experimental features use file-based flags at `/tmp/navi/features/<name>`. This lets hooks skip work for disabled features without modifying `hooks.json` or restarting Claude Code sessions.
+Experimental features use file-based flags at `/tmp/angrynavi/features/<name>`. This lets hooks skip work for disabled features without modifying `hooks.json` or restarting Claude Code sessions.
 
 - **Swift side:** `FeatureFlags.set(_:enabled:)` (in `NaviCore`) creates/deletes flag files. Each `FloatingWindowManager` toggle's `didSet` calls it, and `syncFeatureFlags()` writes all flags on startup.
-- **Hook side:** scripts check `[ -f /tmp/navi/features/<name> ]` before doing feature-specific work. If the file is absent, the work is skipped.
+- **Hook side:** scripts check `[ -f /tmp/angrynavi/features/<name> ]` before doing feature-specific work. If the file is absent, the work is skipped.
 
 Two types of flag files:
 
@@ -87,7 +88,7 @@ Hooks should always check file existence first (is the feature enabled?) and onl
 
 ### 1. Choose a flag name
 
-Pick a kebab-case name (e.g., `my-feature`). This is used in `/tmp/navi/features/` and as the feature's identity across all layers.
+Pick a kebab-case name (e.g., `my-feature`). This is used in `/tmp/angrynavi/features/` and as the feature's identity across all layers.
 
 ### 2. Swift changes
 
@@ -145,7 +146,7 @@ if feature_enabled("my-feature"):
 
 **In a new hook script:**
 ```bash
-[ -f /tmp/navi/features/my-feature ] || exit 0
+[ -f /tmp/angrynavi/features/my-feature ] || exit 0
 ```
 
 ### 3b. Configurable features (if needed)
@@ -185,7 +186,7 @@ If the feature requires new hook types, add them to `hooks/hooks.json`. Note tha
 - **Flag files are the source of truth for hooks** — hooks never read UserDefaults
 - **Swift toggles take effect immediately** where possible — the `didSet` writes the flag file and SwiftUI reactivity handles UI changes
 - **Prefer runtime flag gating over removing hooks from `hooks.json`** — removing a hook registration requires users to restart Claude sessions to pick up the change, whereas a flag file check takes effect immediately. Only remove a hook registration when it is genuinely obsolete (e.g., its work is fully covered by another mechanism), not merely when it is temporarily unwanted.
-- **If a feature requires init-time setup inside Navi** (e.g., `DispatchSource`), pass `requiresRestart: true` to `settingsRow()`. This sets `floatingManager.pendingRestart = true` on change and shows a restart banner with a "Restart Navi" button.
+- **If a feature requires init-time setup inside AngryNavi** (e.g., `DispatchSource`), pass `requiresRestart: true` to `settingsRow()`. This sets `floatingManager.pendingRestart = true` on change and shows a restart banner with a "Restart AngryNavi" button.
 - **If a feature requires new hooks in `hooks.json`** (not just gating existing hooks), the version upgrade banner handles the restart hint automatically. On first launch after a plugin update, `FloatingWindowManager` compares `NaviLastVersion` with `naviCurrentVersion` and shows a one-time dismissable banner: "Navi updated — restart Claude sessions for new features".
 
 ## Promoting an Experimental Feature to General Settings
@@ -210,7 +211,7 @@ if UserDefaults.standard.object(forKey: "Navi.MyFeature") == nil,
 
 ### 3. Keep the feature flag file
 
-The flag file mechanism (`/tmp/navi/features/my-feature`) stays — it's not specific to experimental status. It's how hooks know whether the feature is enabled, regardless of which settings tab the toggle lives in.
+The flag file mechanism (`/tmp/angrynavi/features/my-feature`) stays — it's not specific to experimental status. It's how hooks know whether the feature is enabled, regardless of which settings tab the toggle lives in.
 
 ### 4. Update the property name (optional)
 
@@ -218,7 +219,7 @@ Rename `myFeatureEnabled` to drop any "experimental" connotation if present. Upd
 
 ## Building External Plugins
 
-Navi's extension API lets you build plugins that surface cards in the floating window without touching this repository. The contract is simple: write a JSON file to `/tmp/navi/events/` and Navi renders it.
+AngryNavi's extension API lets you build plugins that surface cards in the floating window without touching this repository. The contract is simple: write a JSON file to `/tmp/angrynavi/events/` and AngryNavi renders it.
 
 ### The `info` event type
 
@@ -239,11 +240,11 @@ A typical Claude Code hook-based plugin looks like this:
 }
 ```
 
-**`hook.sh`** — check Navi is present, write an info event:
+**`hook.sh`** — check AngryNavi is present, write an info event:
 ```bash
 #!/bin/bash
-NAVI_EVENTS="/tmp/navi/events"
-[ -d "$NAVI_EVENTS" ] || exit 0   # no-op if Navi isn't installed
+NAVI_EVENTS="/tmp/angrynavi/events"
+[ -d "$NAVI_EVENTS" ] || exit 0   # no-op if AngryNavi isn't installed
 
 ID="$(date +%s)-$(openssl rand -hex 16)"
 BODY="$(compute_your_message)"    # your logic here

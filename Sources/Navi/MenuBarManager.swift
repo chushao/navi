@@ -49,7 +49,7 @@ class MenuBarManager: NSObject, ObservableObject {
     private func updateIcon(pendingCount: Int) {
         guard let button = statusItem?.button else { return }
         let name = pendingCount > 0 ? "bolt.circle.fill" : "bolt.circle"
-        let image = NSImage(systemSymbolName: name, accessibilityDescription: "Navi")
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: "AngryNavi")
         image?.isTemplate = true
         button.image = image
     }

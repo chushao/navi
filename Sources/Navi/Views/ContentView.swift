@@ -14,14 +14,14 @@ class NaviWindow {
     static var ref: NSWindow?
 }
 
-let autoLaunchFlagPath = "/tmp/navi/no-auto-launch"
+let autoLaunchFlagPath = "/tmp/angrynavi/no-auto-launch"
 
 struct ContentView: View {
     @ObservedObject var monitor: EventMonitor
     @ObservedObject var floatingManager: FloatingWindowManager
     @ObservedObject var enrichmentService: EnrichmentService
     var isFloatingWindow: Bool = false
-    @State private var autoLaunch: Bool = !FileManager.default.fileExists(atPath: "/tmp/navi/no-auto-launch")
+    @State private var autoLaunch: Bool = !FileManager.default.fileExists(atPath: "/tmp/angrynavi/no-auto-launch")
     @State private var permissionSoundOn: Bool = UserDefaults.standard.object(forKey: "NaviSound.permission") as? Bool ?? true
     @State private var permissionSound: String = UserDefaults.standard.string(forKey: "NaviSound.permission.name") ?? "Glass"
     @State private var stopSoundOn: Bool = UserDefaults.standard.object(forKey: "NaviSound.stop") as? Bool ?? false
@@ -125,7 +125,7 @@ struct ContentView: View {
             Image(systemName: "bolt.circle.fill")
                 .foregroundStyle(.blue)
                 .font(.system(size: 16))
-            Text("Navi")
+            Text("AngryNavi")
                 .font(.system(size: 14, weight: .semibold))
             Button {
                 showSettings.toggle()

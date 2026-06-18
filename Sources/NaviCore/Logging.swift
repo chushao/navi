@@ -7,7 +7,7 @@ public func naviLog(_ message: String, _ args: CVarArg...) {
     let formatted = String(format: message, arguments: args)
     let ts = ISO8601DateFormatter().string(from: Date())
     let line = "\(ts) \(formatted)\n"
-    let path = "/tmp/navi/debug.log"
+    let path = "/tmp/angrynavi/debug.log"
     if let handle = FileHandle(forWritingAtPath: path) {
         handle.seekToEndOfFile()
         handle.write(line.data(using: .utf8)!)

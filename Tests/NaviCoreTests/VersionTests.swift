@@ -18,7 +18,7 @@ struct VersionTests {
     }
 
     /// Drift guard: the runtime constant should match plugin.json. The build
-    /// script reads plugin.json's version into Navi.app, so a mismatch leads
+    /// script reads plugin.json's version into AngryNavi.app, so a mismatch leads
     /// to confusing restart-banner behavior.
     @Test func matchesPluginJSON() throws {
         var dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()

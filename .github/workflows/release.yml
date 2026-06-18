@@ -67,7 +67,7 @@ jobs:
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/out"
-          shasum -a 256 Navi.app.zip > checksums.txt
+          shasum -a 256 AngryNavi.app.zip > checksums.txt
           cat checksums.txt
 
       - name: Upload artifact
@@ -76,7 +76,7 @@ jobs:
         with:
           name: navi-build-${{ matrix.run }}
           path: |
-            ${{ runner.temp }}/out/Navi.app.zip
+            ${{ runner.temp }}/out/AngryNavi.app.zip
             ${{ runner.temp }}/out/checksums.txt
           if-no-files-found: error
 
@@ -135,7 +135,7 @@ jobs:
         # actions/attest-build-provenance v4.1.0
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32
         with:
-          subject-path: release/Navi.app.zip
+          subject-path: release/AngryNavi.app.zip
 
       - name: Create GitHub Release
         env:
@@ -147,14 +147,14 @@ jobs:
           SHA256=$(awk '{print $1}' release/checksums.txt)
           gh release create "$TAG" \
             --target "$GITHUB_SHA" \
-            --title "Navi $TAG" \
+            --title "AngryNavi $TAG" \
             --notes "Automated release built and verified by .github/workflows/release.yml.
 
           SHA-256: \`$SHA256\`
 
           Build provenance is attested via GitHub's Sigstore integration; verify locally with:
 
-              gh attestation verify Navi.app.zip --owner ${GITHUB_REPOSITORY_OWNER}
+              gh attestation verify AngryNavi.app.zip --owner ${GITHUB_REPOSITORY_OWNER}
 
           The plugin's hook-time \`build.sh\` script does this automatically when the \`gh\` CLI is installed." \
-            release/Navi.app.zip release/checksums.txt
+            release/AngryNavi.app.zip release/checksums.txt

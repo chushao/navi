@@ -7,8 +7,8 @@ public class EventMonitor: ObservableObject {
     @Published public var sessions: [String: SessionInfo] = [:]
     @Published public var needsBinaryRestart = false
 
-    private let eventsDir = "/tmp/navi/events"
-    private let responsesDir = "/tmp/navi/responses"
+    private let eventsDir = "/tmp/angrynavi/events"
+    private let responsesDir = "/tmp/angrynavi/responses"
     private var knownIDs = Set<String>()
     private var timer: Timer?
     private var dirSource: DispatchSourceFileSystemObject?
@@ -29,13 +29,13 @@ public class EventMonitor: ObservableObject {
         // Self-heal perms on pre-existing dirs so event JSON (Confidential tool
         // input) and response files (trusted permission-decision channel) stay
         // owner-readable only.
-        try? fm.setAttributes(ownerOnly, ofItemAtPath: "/tmp/navi")
+        try? fm.setAttributes(ownerOnly, ofItemAtPath: "/tmp/angrynavi")
         try? fm.setAttributes(ownerOnly, ofItemAtPath: eventsDir)
         try? fm.setAttributes(ownerOnly, ofItemAtPath: responsesDir)
         // Clean stale files from previous runs
         cleanDirectory(eventsDir)
         cleanDirectory(responsesDir)
-        try? fm.removeItem(atPath: "/tmp/navi/needs-restart")
+        try? fm.removeItem(atPath: "/tmp/angrynavi/needs-restart")
 
         // Discover already-running Claude sessions from ~/.claude/sessions/
         discoverSessions()
@@ -237,7 +237,7 @@ public class EventMonitor: ObservableObject {
             }
 
             // Check if build.sh rebuilt a newer version while we're running
-            let restartMarker = "/tmp/navi/needs-restart"
+            let restartMarker = "/tmp/angrynavi/needs-restart"
             if !self.needsBinaryRestart && fm.fileExists(atPath: restartMarker) {
                 let newVersion = (try? String(contentsOfFile: restartMarker, encoding: .utf8)
                     .trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
