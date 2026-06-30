@@ -123,7 +123,7 @@ struct ContentView: View {
     private var controlsBar: some View {
         HStack(spacing: 6) {
             Image(systemName: "bolt.circle.fill")
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.fireOrange)
                 .font(.system(size: 16))
             Text("AngryNavi")
                 .font(.system(size: 14, weight: .semibold))
@@ -230,7 +230,7 @@ struct ContentView: View {
                 }
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .tint(.blue)
+                .tint(.fireOrange)
                 .onChange(of: autoLaunch) { _, on in
                     if on {
                         try? FileManager.default.removeItem(atPath: autoLaunchFlagPath)
@@ -377,7 +377,7 @@ struct ContentView: View {
             ) : isOn)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .tint(.blue)
+                .tint(.fireOrange)
                 .labelsHidden()
         }
         .padding(.leading, indent ? 12 : 0)
@@ -402,6 +402,9 @@ struct ContentView: View {
             if floatingManager.contextAlertsEnabled {
                 contextAlertThresholdPicker
             }
+
+            settingsRow("Yolo mode", subtitle: "⚠️ Automatically approve every permission request the moment it arrives, without asking. This approves ALL actions, including destructive ones. Use with caution.",
+                isOn: Binding(get: { floatingManager.yoloModeEnabled }, set: { floatingManager.yoloModeEnabled = $0 }))
 
             Spacer()
         }
@@ -430,7 +433,7 @@ struct ContentView: View {
         HStack(spacing: 6) {
             Image(systemName: "arrow.clockwise")
                 .font(.system(size: 10))
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color.fireOrange)
             Text("Navi was rebuilt")
                 .font(.system(size: 10))
                 .foregroundStyle(.secondary)
@@ -446,7 +449,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
-        .background(Color.blue.opacity(0.05))
+        .background(Color.fireOrange.opacity(0.05))
     }
 
     private var sessionRestartHint: some View {
@@ -480,7 +483,7 @@ struct ContentView: View {
             Toggle("", isOn: isOn)
                 .toggleStyle(.switch)
                 .controlSize(.mini)
-                .tint(.blue)
+                .tint(.fireOrange)
                 .labelsHidden()
                 .onChange(of: isOn.wrappedValue) { _, on in
                     UserDefaults.standard.set(on, forKey: "NaviSound.\(key)")

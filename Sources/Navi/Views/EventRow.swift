@@ -24,7 +24,7 @@ struct EventRow: View {
             if event.resolved { return event.response == "approve" ? .green : .red }
             return .orange
         case "stop": return .green
-        case "info": return .blue
+        case "info": return .fireOrange
         default: return .secondary
         }
     }
@@ -174,7 +174,7 @@ struct EventRow: View {
                 monitor.respond(to: event.id, with: "approve")
             }
                 .buttonStyle(.borderedProminent)
-                .tint(.blue)
+                .tint(.fireOrange)
                 .controlSize(.small)
         }
         .padding(.top, 2)

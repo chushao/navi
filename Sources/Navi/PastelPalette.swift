@@ -6,4 +6,5 @@ extension Color {
     static let pastelGray   = Color(hue: 0.00, saturation: 0.00, brightness: 0.92)
     static let pastelBlue   = Color(hue: 0.58, saturation: 0.32, brightness: 1.00)
     static let pastelPurple = Color(hue: 0.78, saturation: 0.32, brightness: 0.98)
+    static let fireOrange   = Color(red: 1.0, green: 117/255, blue: 0)
 }

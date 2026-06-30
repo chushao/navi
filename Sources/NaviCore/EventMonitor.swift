@@ -75,11 +75,22 @@ public class EventMonitor: ObservableObject {
     }
 
     private func poll() {
+        // poll() is always called on the main thread (kqueue source uses queue: .main,
+        // timer runs on RunLoop.main). All mutations to @Published properties happen
+        // synchronously here so SwiftUI sees exactly one objectWillChange notification
+        // per poll cycle — eliminating the layout re-entrancy crash caused by multiple
+        // queued async blocks each triggering a separate SwiftUI layout pass.
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(atPath: eventsDir) else { return }
 
         var newEventTypes = Set<String>()
         var workingSessions = Set<String>()
+
+        // Collect resolve signals and new events without touching @Published props yet.
+        struct ResolveSignal { var toolUseID: String; var eventID: String }
+        var resolveSignals: [ResolveSignal] = []
+        var pendingEvents: [NaviEvent] = []
+
         for file in files.sorted() where file.hasSuffix(".json") {
             let path = "\(eventsDir)/\(file)"
 
@@ -88,21 +99,10 @@ public class EventMonitor: ObservableObject {
             if file.hasPrefix("resolve-") || file.hasPrefix("cancel-") {
                 if let data = fm.contents(atPath: path),
                    let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    let tuid = dict["tool_use_id"] as? String
-                    let eid = dict["id"] as? String
-                    DispatchQueue.main.async {
-                        for i in self.events.indices where self.events[i].isPending {
-                            if (tuid != nil && !tuid!.isEmpty && self.events[i].toolUseID == tuid) ||
-                               (eid != nil && self.events[i].id == eid) {
-                                self.events[i].resolved = true
-                                self.events[i].response = "dismissed"
-                            }
-                        }
-                        // info cards are never isPending; resolve them by id directly.
-                        if let eid = eid, !eid.isEmpty {
-                            self.events.removeAll { $0.type == "info" && $0.id == eid }
-                        }
-                    }
+                    resolveSignals.append(ResolveSignal(
+                        toolUseID: dict["tool_use_id"] as? String ?? "",
+                        eventID: dict["id"] as? String ?? ""
+                    ))
                 }
                 try? fm.removeItem(atPath: path)
                 continue
@@ -146,43 +146,12 @@ public class EventMonitor: ObservableObject {
                 toolUseID: dict["tool_use_id"] as? String ?? "",
                 expires: (dict["expires"] as? Double).flatMap { $0 > 0 ? Date(timeIntervalSince1970: $0) : nil }
             )
-            DispatchQueue.main.async {
-                self.updateSession(for: event)
-                // Skip Notification events for sessions that already have a
-                // pending Permission — the permission itself signals "needs
-                // attention", so the notification would be redundant.
-                if event.type == "notification",
-                   self.events.contains(where: { $0.sessionID == event.sessionID && $0.isPending }) {
-                    return
-                }
-                // When a Stop event arrives, immediately dismiss pending
-                // permissions for this session — the turn ended, so any
-                // unresolved permission was denied/interrupted. Other
-                // non-permission events use a 30s age threshold.
-                // Info events are passive status cards — they don't affect pending permissions.
-                if event.type != "permission" && event.type != "info" {
-                    let minAge: TimeInterval = event.type == "stop" ? 0 : 30
-                    for i in self.events.indices where self.events[i].sessionID == event.sessionID && self.events[i].isPending && event.timestamp.timeIntervalSince(self.events[i].timestamp) > minAge {
-                        self.events[i].resolved = true
-                        self.events[i].response = "dismissed"
-                    }
-                }
-                // Keep only the latest event per session (preserve pending permissions and
-                // sticky info cards). Info events are additive — they don't displace the
-                // current stop/notification card, and non-info events don't displace info cards.
-                if event.type != "info" {
-                    self.events.removeAll { $0.sessionID == event.sessionID && !$0.isPending && $0.type != "info" }
-                }
-                // Stop events update session state and clear stale cards (above) but don't
-                // add a card themselves — the session header's Idle status covers it.
-                guard event.type != "stop" else { return }
-                self.events.insert(event, at: 0)
-            }
             if event.type != "stop" { newEventTypes.insert(event.type) }
+            pendingEvents.append(event)
             try? fm.removeItem(atPath: path)
         }
 
-        // Play sounds for new events (check each type independently)
+        // Play sounds for new events (synchronous, no @Published involved)
         for type in newEventTypes {
             if UserDefaults.standard.object(forKey: "NaviSound.\(type)") as? Bool ?? (type == "permission") {
                 let name = UserDefaults.standard.string(forKey: "NaviSound.\(type).name") ?? "Glass"
@@ -190,63 +159,128 @@ public class EventMonitor: ObservableObject {
             }
         }
 
-
-
-        // Auto-dismiss old events and manage sessions
+        // Compute the new events array locally so self.events is published once.
         let now = Date()
-        DispatchQueue.main.async {
-            self.events.removeAll { event in
-                if event.isPending { return false }
-                if event.type == "info" && !event.resolved { return false }
-                if event.resolved { return now.timeIntervalSince(event.timestamp) > 10 }
-                return now.timeIntervalSince(event.timestamp) > 60
-            }
-            // Discover new sessions BEFORE applying working signals so that
-            // a brand-new session's first working signal isn't dropped. The
-            // returned set is the authoritative list of session IDs backed by a
-            // live process, used to prune ghosts below.
-            let liveSessionIDs = self.discoverSessions()
-            // Apply working signals AFTER regular events and discovery so
-            // they always win over stale Stop events.
-            for sid in workingSessions {
-                if self.sessions[sid] != nil {
-                    self.sessions[sid]!.lastEventType = "working"
-                    self.sessions[sid]!.lastActivity = Date()
-                }
-                // New turn — dismiss stale pending permissions
-                for i in self.events.indices where self.events[i].sessionID == sid && self.events[i].isPending {
-                    self.events[i].resolved = true
-                    self.events[i].response = "dismissed"
-                }
-            }
-            // Prune ghosts by verified identity: keep a session only when its
-            // own id is backed by a live process. Skip pruning entirely if the
-            // sessions dir couldn't be read (nil), so a transient FS error
-            // never wipes live sessions.
-            if let liveSessionIDs {
-                let before = Set(self.sessions.keys)
-                self.sessions = self.sessions.filter { $0.value.isAlive(among: liveSessionIDs) }
-                let pruned = before.subtracting(self.sessions.keys)
-                if !pruned.isEmpty {
-                    self.events.removeAll { !$0.isPending && pruned.contains($0.sessionID) }
-                    if let svc = self.enrichmentService {
-                        pruned.forEach { svc.evict(sessionID: $0) }
-                        svc.evictUnused(activeCwds: Set(self.sessions.values.map(\.cwd)))
-                    }
-                }
-            }
+        var updatedEvents = events
 
-            // Check if build.sh rebuilt a newer version while we're running
-            let restartMarker = "/tmp/angrynavi/needs-restart"
-            if !self.needsBinaryRestart && fm.fileExists(atPath: restartMarker) {
-                let newVersion = (try? String(contentsOfFile: restartMarker, encoding: .utf8)
-                    .trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
-                try? fm.removeItem(atPath: restartMarker)
-                if !newVersion.isEmpty && newVersion != naviCurrentVersion {
-                    self.needsBinaryRestart = true
+        // Apply resolve signals
+        for sig in resolveSignals {
+            let tuid = sig.toolUseID
+            let eid = sig.eventID
+            for i in updatedEvents.indices where updatedEvents[i].isPending {
+                if (!tuid.isEmpty && updatedEvents[i].toolUseID == tuid) ||
+                   (!eid.isEmpty && updatedEvents[i].id == eid) {
+                    updatedEvents[i].resolved = true
+                    updatedEvents[i].response = "dismissed"
+                }
+            }
+            // info cards are never isPending; resolve them by id directly.
+            if !eid.isEmpty {
+                updatedEvents.removeAll { $0.type == "info" && $0.id == eid }
+            }
+        }
+
+        // Process new events (updateSession touches self.sessions directly, which is fine —
+        // sessions publishes independently and changes there are few per poll cycle)
+        for event in pendingEvents {
+            updateSession(for: event)
+            // Skip Notification events for sessions that already have a
+            // pending Permission — the permission itself signals "needs
+            // attention", so the notification would be redundant.
+            if event.type == "notification",
+               updatedEvents.contains(where: { $0.sessionID == event.sessionID && $0.isPending }) {
+                continue
+            }
+            // When a Stop event arrives, immediately dismiss pending
+            // permissions for this session — the turn ended, so any
+            // unresolved permission was denied/interrupted. Other
+            // non-permission events use a 30s age threshold.
+            // Info events are passive status cards — they don't affect pending permissions.
+            if event.type != "permission" && event.type != "info" {
+                let minAge: TimeInterval = event.type == "stop" ? 0 : 30
+                for i in updatedEvents.indices where updatedEvents[i].sessionID == event.sessionID && updatedEvents[i].isPending && event.timestamp.timeIntervalSince(updatedEvents[i].timestamp) > minAge {
+                    updatedEvents[i].resolved = true
+                    updatedEvents[i].response = "dismissed"
+                }
+            }
+            // Keep only the latest event per session (preserve pending permissions and
+            // sticky info cards). Info events are additive — they don't displace the
+            // current stop/notification card, and non-info events don't displace info cards.
+            if event.type != "info" {
+                updatedEvents.removeAll { $0.sessionID == event.sessionID && !$0.isPending && $0.type != "info" }
+            }
+            // Stop events update session state and clear stale cards (above) but don't
+            // add a card themselves — the session header's Idle status covers it.
+            guard event.type != "stop" else { continue }
+            // Yolo mode: auto-approve permission requests the instant they arrive,
+            // routing through the same responses channel the hook polls.
+            var insertedEvent = event
+            if event.type == "permission" && FileManager.default.fileExists(atPath: "\(FeatureFlags.directory)/yolo-mode") {
+                try? "approve".write(toFile: "\(responsesDir)/\(event.id)", atomically: true, encoding: .utf8)
+                insertedEvent.resolved = true
+                insertedEvent.response = "approve"
+            }
+            updatedEvents.insert(insertedEvent, at: 0)
+        }
+
+        // Auto-dismiss old events
+        updatedEvents.removeAll { event in
+            if event.isPending { return false }
+            if event.type == "info" && !event.resolved { return false }
+            if event.resolved { return now.timeIntervalSince(event.timestamp) > 10 }
+            return now.timeIntervalSince(event.timestamp) > 60
+        }
+
+        // Discover new sessions BEFORE applying working signals so that
+        // a brand-new session's first working signal isn't dropped. The
+        // returned set is the authoritative list of session IDs backed by a
+        // live process, used to prune ghosts below.
+        let liveSessionIDs = discoverSessions()
+
+        // Apply working signals AFTER regular events and discovery so
+        // they always win over stale Stop events.
+        for sid in workingSessions {
+            if sessions[sid] != nil {
+                sessions[sid]!.lastEventType = "working"
+                sessions[sid]!.lastActivity = Date()
+            }
+            // New turn — dismiss stale pending permissions
+            for i in updatedEvents.indices where updatedEvents[i].sessionID == sid && updatedEvents[i].isPending {
+                updatedEvents[i].resolved = true
+                updatedEvents[i].response = "dismissed"
+            }
+        }
+
+        // Prune ghosts by verified identity: keep a session only when its
+        // own id is backed by a live process. Skip pruning entirely if the
+        // sessions dir couldn't be read (nil), so a transient FS error
+        // never wipes live sessions.
+        if let liveSessionIDs {
+            let before = Set(sessions.keys)
+            sessions = sessions.filter { $0.value.isAlive(among: liveSessionIDs) }
+            let pruned = before.subtracting(sessions.keys)
+            if !pruned.isEmpty {
+                updatedEvents.removeAll { !$0.isPending && pruned.contains($0.sessionID) }
+                if let svc = enrichmentService {
+                    pruned.forEach { svc.evict(sessionID: $0) }
+                    svc.evictUnused(activeCwds: Set(sessions.values.map(\.cwd)))
                 }
             }
         }
+
+        // Check if build.sh rebuilt a newer version while we're running
+        let restartMarker = "/tmp/angrynavi/needs-restart"
+        if !needsBinaryRestart && fm.fileExists(atPath: restartMarker) {
+            let newVersion = (try? String(contentsOfFile: restartMarker, encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
+            try? fm.removeItem(atPath: restartMarker)
+            if !newVersion.isEmpty && newVersion != naviCurrentVersion {
+                needsBinaryRestart = true
+            }
+        }
+
+        // Single assignment — one objectWillChange.send() for events
+        events = updatedEvents
     }
 
     /// Parse Claude's `updatedAt` field (epoch milliseconds) into a Date.
